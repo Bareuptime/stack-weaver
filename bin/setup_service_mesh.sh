@@ -299,11 +299,15 @@ template {
 }
 EOF
     
-    log_info "✅ Vault Agent config created"
+    log_success "✅ Vault Agent config created"
 }
 
 create_certificate_templates() {
     log_info "Creating certificate templates..."
+
+    log_info "Restarting Vault Agent to apply changes..."
+    systemctl restart vault-agent
+    log_info "✅ Vault Agent restarted"
     
     # CA certificate template
     cat > /etc/vault-agent/templates/ca-cert.tpl << 'EOF'
