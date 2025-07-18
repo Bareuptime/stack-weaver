@@ -554,7 +554,7 @@ start_services() {
     # Wait for certificates to be generated
     log_info "Waiting for certificates to be generated..."
     for i in {1..60}; do
-        if [ -f "/etc/consul.d/tls/consul.pem" ] && [ -f "/etc/consul.d/tls/consul-key.pem" ]; then
+        if [ -f "/etc/consul.d/tls/consul.pem" ] && [ -f "/etc/consul.d/tls/consul-key.pem" ] && [ -f "/etc/consul.d/tls/ca.pem" ]; then
             log_info "✅ Certificates generated successfully"
             # Fix ownership of certificate files for consul service
             chown consul:consul /etc/consul.d/tls/consul.pem
@@ -568,7 +568,12 @@ start_services() {
         fi
         sleep 2
         if [ $i -eq 60 ]; then
-            log_info "⚠️  Timeout waiting for certificates"
+            log_error "⚠️  Timeout waiting for certificates"
+            log_error "Following certificates were generated:"
+            ls -la /etc/consul.d/tls/ || true
+            log_error "Please check Vault Agent logs for more details"
+            log_info "You can also check the status of Vault Agent with: [sudo systemctl status vault-agent] and [journalctl -u vault-agent -n 100] "
+            return 1
         fi
     done
     
