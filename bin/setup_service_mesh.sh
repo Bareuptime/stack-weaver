@@ -364,9 +364,9 @@ EOF
     # Nomad certificate template  
     cat > /etc/vault-agent/templates/nomad-cert.tpl << EOF
 {{- with secret "pki-nodes/issue/node-cert" 
-    "common_name=nomad.service.consul"
+    "common_name=nomad-consul-vault-cluster"
     "ip_sans=$NODE_IP,127.0.0.1"
-    "alt_names=localhost,nomad"
+    "alt_names=localhost,nomad,consul,vault,nomad.service.consul,consul.service.consul,vault.service.consul,*.nomad.service.consul,*.consul.service.consul,*.vault.service.consul"
     "ttl=12h" -}}
 {{ .Data.certificate }}
 {{- end -}}
@@ -375,9 +375,9 @@ EOF
     # Nomad private key template
     cat > /etc/vault-agent/templates/nomad-key.tpl << EOF
 {{- with secret "pki-nodes/issue/node-cert" 
-    "common_name=nomad.service.consul"
+    "common_name=nomad-consul-vault-cluster"
     "ip_sans=$NODE_IP,127.0.0.1"
-    "alt_names=localhost,nomad"
+    "alt_names=localhost,nomad,consul,vault,nomad.service.consul,consul.service.consul,vault.service.consul,*.nomad.service.consul,*.consul.service.consul,*.vault.service.consul"
     "ttl=12h" -}}
 {{ .Data.private_key }}
 {{- end -}}
@@ -598,8 +598,8 @@ tls {
   ca_file = "/etc/nomad.d/tls/ca.pem"
   cert_file = "/etc/nomad.d/tls/nomad.pem"
   key_file = "/etc/nomad.d/tls/nomad-key.pem"
-  verify_server_hostname = true
-  verify_https_client = true
+  verify_server_hostname = false
+  verify_https_client = false
 }
 
 acl {
