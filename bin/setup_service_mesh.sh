@@ -211,6 +211,8 @@ create_service_directories() {
     chown -R nomad:nomad /etc/nomad.d /opt/nomad
     # TLS directory needs to be owned by consul so consul service can read the certificates
     chown -R consul:consul /etc/consul.d/tls
+    # TLS directory needs to be owned by nomad so nomad service can read the certificates
+    chown -R nomad:nomad /etc/nomad.d/tls
     
     log_success "✅ Directories created"
 }
@@ -297,6 +299,27 @@ template {
   perms       = 0644
   command     = "/etc/vault-agent/fix-ca-cert-ownership.sh"
 }
+
+template {
+  source      = "/etc/vault-agent/templates/nomad-cert.tpl"
+  destination = "/etc/nomad.d/tls/nomad.pem"
+  perms       = 0644
+  command     = "/etc/vault-agent/fix-nomad-cert-ownership.sh"
+}
+
+template {
+  source      = "/etc/vault-agent/templates/nomad-key.tpl"
+  destination = "/etc/nomad.d/tls/nomad-key.pem"
+  perms       = 0600
+  command     = "/etc/vault-agent/fix-nomad-key-ownership.sh"
+}
+
+template {
+  source      = "/etc/vault-agent/templates/ca-cert.tpl"
+  destination = "/etc/nomad.d/tls/ca.pem"
+  perms       = 0644
+  command     = "/etc/vault-agent/fix-nomad-ca-ownership.sh"
+}
 EOF
     
     log_success "✅ Vault Agent config created"
@@ -337,6 +360,28 @@ EOF
 {{ .Data.private_key }}
 {{- end -}}
 EOF
+
+    # Nomad certificate template  
+    cat > /etc/vault-agent/templates/nomad-cert.tpl << EOF
+{{- with secret "pki-nodes/issue/node-cert" 
+    "common_name=nomad.service.consul"
+    "ip_sans=$NODE_IP,127.0.0.1"
+    "alt_names=localhost,nomad"
+    "ttl=12h" -}}
+{{ .Data.certificate }}
+{{- end -}}
+EOF
+
+    # Nomad private key template
+    cat > /etc/vault-agent/templates/nomad-key.tpl << EOF
+{{- with secret "pki-nodes/issue/node-cert" 
+    "common_name=nomad.service.consul"
+    "ip_sans=$NODE_IP,127.0.0.1"
+    "alt_names=localhost,nomad"
+    "ttl=12h" -}}
+{{ .Data.private_key }}
+{{- end -}}
+EOF
     
     log_success "✅ Certificate templates created"
 }
@@ -371,6 +416,34 @@ chown consul:consul /etc/consul.d/tls/ca.pem
 chmod 644 /etc/consul.d/tls/ca.pem
 EOF
     chmod +x /etc/vault-agent/fix-ca-cert-ownership.sh
+    
+    # Script for nomad certificate
+    cat > /etc/vault-agent/fix-nomad-cert-ownership.sh << 'EOF'
+#!/bin/bash
+chown nomad:nomad /etc/nomad.d/tls/nomad.pem
+chmod 644 /etc/nomad.d/tls/nomad.pem
+# Only reload if nomad is already running
+if systemctl is-active --quiet nomad; then
+    systemctl reload nomad || true
+fi
+EOF
+    chmod +x /etc/vault-agent/fix-nomad-cert-ownership.sh
+    
+    # Script for nomad private key
+    cat > /etc/vault-agent/fix-nomad-key-ownership.sh << 'EOF'
+#!/bin/bash
+chown nomad:nomad /etc/nomad.d/tls/nomad-key.pem
+chmod 600 /etc/nomad.d/tls/nomad-key.pem
+EOF
+    chmod +x /etc/vault-agent/fix-nomad-key-ownership.sh
+    
+    # Script for nomad CA certificate
+    cat > /etc/vault-agent/fix-nomad-ca-ownership.sh << 'EOF'
+#!/bin/bash
+chown nomad:nomad /etc/nomad.d/tls/ca.pem
+chmod 644 /etc/nomad.d/tls/ca.pem
+EOF
+    chmod +x /etc/vault-agent/fix-nomad-ca-ownership.sh
     
     log_success "✅ Certificate ownership scripts created"
 }
@@ -500,6 +573,7 @@ log_level = "INFO"
 log_json = true
 log_file = "/opt/nomad/logs/"
 name = "$NODE_NAME"
+bind_addr = "$bind_ip"
 
 server {
   enabled = false
@@ -518,8 +592,28 @@ consul {
   address = "127.0.0.1:8500"
 }
 
+tls {
+  http = true
+  rpc = true
+  ca_file = "/etc/nomad.d/tls/ca.pem"
+  cert_file = "/etc/nomad.d/tls/nomad.pem"
+  key_file = "/etc/nomad.d/tls/nomad-key.pem"
+  verify_server_hostname = true
+  verify_https_client = true
+}
+
 acl {
   enabled = true
+}
+
+vault {
+  enabled = true
+  address = "$VAULT_ADDR"
+  create_from_role = "nomad-cluster"
+  task_token_ttl = "1h"
+  ca_path = "/etc/nomad.d/tls/ca.pem"
+  cert_path = "/etc/nomad.d/tls/nomad.pem"
+  key_path = "/etc/nomad.d/tls/nomad-key.pem"
 }
 EOF
     
@@ -596,11 +690,13 @@ start_services() {
     systemctl start vault-agent
     log_info "Vault Agent started"
     
-    # Wait for certificates to be generated
-    log_info "Waiting for certificates to be generated..."
+    # Wait for Consul certificates to be generated
+    log_info "Waiting for Consul certificates to be generated..."
+    printf "Progress: "
     for i in {1..60}; do
         if [ -f "/etc/consul.d/tls/consul.pem" ] && [ -f "/etc/consul.d/tls/consul-key.pem" ] && [ -f "/etc/consul.d/tls/ca.pem" ]; then
-            log_info "✅ Certificates generated successfully"
+            printf "\n"
+            log_info "✅ Consul certificates generated successfully"
             # Fix ownership of certificate files for consul service
             chown consul:consul /etc/consul.d/tls/consul.pem
             chown consul:consul /etc/consul.d/tls/consul-key.pem
@@ -608,14 +704,46 @@ start_services() {
             chmod 644 /etc/consul.d/tls/consul.pem
             chmod 600 /etc/consul.d/tls/consul-key.pem
             chmod 644 /etc/consul.d/tls/ca.pem
-            log_info "✅ Certificate permissions fixed"
+            log_info "✅ Consul certificate permissions fixed"
             break
         fi
+        printf "%d " $i
         sleep 2
         if [ $i -eq 60 ]; then
-            log_error "⚠️  Timeout waiting for certificates"
-            log_error "Following certificates were generated:"
+            printf "\n"
+            log_error "⚠️  Timeout waiting for Consul certificates"
+            log_error "Following Consul certificates were generated:"
             ls -la /etc/consul.d/tls/ || true
+            log_error "Please check Vault Agent logs for more details"
+            log_info "You can also check the status of Vault Agent with: [sudo systemctl status vault-agent] and [journalctl -u vault-agent -n 100] "
+            return 1
+        fi
+    done
+    
+    # Wait for Nomad certificates to be generated
+    log_info "Waiting for Nomad certificates to be generated..."
+    printf "Progress: "
+    for i in {1..60}; do
+        if [ -f "/etc/nomad.d/tls/nomad.pem" ] && [ -f "/etc/nomad.d/tls/nomad-key.pem" ] && [ -f "/etc/nomad.d/tls/ca.pem" ]; then
+            printf "\n"
+            log_info "✅ Nomad certificates generated successfully"
+            # Fix ownership of certificate files for nomad service
+            chown nomad:nomad /etc/nomad.d/tls/nomad.pem
+            chown nomad:nomad /etc/nomad.d/tls/nomad-key.pem
+            chown nomad:nomad /etc/nomad.d/tls/ca.pem
+            chmod 644 /etc/nomad.d/tls/nomad.pem
+            chmod 600 /etc/nomad.d/tls/nomad-key.pem
+            chmod 644 /etc/nomad.d/tls/ca.pem
+            log_info "✅ Nomad certificate permissions fixed"
+            break
+        fi
+        printf "%d " $i
+        sleep 2
+        if [ $i -eq 60 ]; then
+            printf "\n"
+            log_error "⚠️  Timeout waiting for Nomad certificates"
+            log_error "Following Nomad certificates were generated:"
+            ls -la /etc/nomad.d/tls/ || true
             log_error "Please check Vault Agent logs for more details"
             log_info "You can also check the status of Vault Agent with: [sudo systemctl status vault-agent] and [journalctl -u vault-agent -n 100] "
             return 1
@@ -696,12 +824,20 @@ check_service_status() {
     
     echo ""
     echo "=== Certificate Files ==="
+    echo "Consul certificates:"
     ls -la /etc/consul.d/tls/ || true
+    echo "Nomad certificates:"
+    ls -la /etc/nomad.d/tls/ || true
     
     echo ""
     echo "=== Certificate Verification ==="
     if [ -f "/etc/consul.d/tls/consul.pem" ]; then
+        echo "Consul certificate:"
         openssl x509 -in /etc/consul.d/tls/consul.pem -text -noout | grep -A 5 "Subject Alternative Name" || true
+    fi
+    if [ -f "/etc/nomad.d/tls/nomad.pem" ]; then
+        echo "Nomad certificate:"
+        openssl x509 -in /etc/nomad.d/tls/nomad.pem -text -noout | grep -A 5 "Subject Alternative Name" || true
     fi
 }
 
@@ -754,12 +890,12 @@ setup_service_mesh() {
     log_info "📋 Summary:"
     log_info "  • Vault Agent: Automatically manages certificates (12h renewal)"
     log_info "  • Consul: Configured with individual node certificate"
-    log_info "  • Nomad: Client node ready to join cluster"
-    log_info "  • Certificates: /etc/consul.d/tls/"
+    log_info "  • Nomad: Client node with TLS certificates and workload identity"
+    log_info "  • Certificates: /etc/consul.d/tls/ and /etc/nomad.d/tls/"
     log_info ""
     log_info "🔧 Monitoring commands:"
     log_info "  • Check Vault Agent: sudo journalctl -u vault-agent -f"
     log_info "  • Check Consul: sudo journalctl -u consul -f"
     log_info "  • Check Nomad: sudo journalctl -u nomad -f"
-    log_info "  • View certificates: ls -la /etc/consul.d/tls/"
+    log_info "  • View certificates: ls -la /etc/consul.d/tls/ && ls -la /etc/nomad.d/tls/"
 }
