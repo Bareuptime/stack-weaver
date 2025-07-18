@@ -31,7 +31,7 @@ error() {
 # =============================================================================
 
 detect_binary_paths() {
-    log "Detecting binary paths..."
+    log_info "Detecting binary paths..."
     
     # Detect Vault binary
     VAULT_BIN=""
@@ -84,64 +84,64 @@ detect_binary_paths() {
         error "Nomad binary not found. Please install Nomad first."
     fi
     
-    log "✅ Binary paths detected:"
-    log "  Vault: $VAULT_BIN"
-    log "  Consul: $CONSUL_BIN"
-    log "  Nomad: $NOMAD_BIN"
+    log_info "✅ Binary paths detected:"
+    log_info "  Vault: $VAULT_BIN"
+    log_info "  Consul: $CONSUL_BIN"
+    log_info "  Nomad: $NOMAD_BIN"
 }
 
 verify_binary_versions() {
-    log "Verifying binary versions..."
+    log_info "Verifying binary versions..."
     
     # Check Vault version
     if ! VAULT_VERSION=$("$VAULT_BIN" version 2>/dev/null | head -n1); then
         error "Failed to get Vault version from $VAULT_BIN"
     fi
-    log "  Vault: $VAULT_VERSION"
+    log_info "  Vault: $VAULT_VERSION"
     
     # Check Consul version
     if ! CONSUL_VERSION=$("$CONSUL_BIN" version 2>/dev/null | head -n1); then
         error "Failed to get Consul version from $CONSUL_BIN"
     fi
-    log "  Consul: $CONSUL_VERSION"
+    log_info "  Consul: $CONSUL_VERSION"
     
     # Check Nomad version
     if ! NOMAD_VERSION=$("$NOMAD_BIN" version 2>/dev/null | head -n1); then
         error "Failed to get Nomad version from $NOMAD_BIN"
     fi
-    log "  Nomad: $NOMAD_VERSION"
+    log_info "  Nomad: $NOMAD_VERSION"
     
-    log "✅ All binaries are functional"
+    log_info "✅ All binaries are functional"
 }
 
 create_service_users() {
-    log "Creating service users..."
+    log_info "Creating service users..."
     
     # Create vault user if it doesn't exist
     if ! id -u vault >/dev/null 2>&1; then
         useradd --system --home /var/lib/vault --shell /bin/false vault
-        log "✅ Created vault user"
+        log_info "✅ Created vault user"
     else
-        log "  Vault user already exists"
+        log_info "  Vault user already exists"
     fi
     
     # Create consul user if it doesn't exist
     if ! id -u consul >/dev/null 2>&1; then
         useradd --system --home /opt/consul --shell /bin/false consul
-        log "✅ Created consul user"
+        log_info "✅ Created consul user"
     else
-        log "  Consul user already exists"
+        log_info "  Consul user already exists"
     fi
     
     # Create nomad user if it doesn't exist
     if ! id -u nomad >/dev/null 2>&1; then
         useradd --system --home /opt/nomad --shell /bin/false nomad
-        log "✅ Created nomad user"
+        log_info "✅ Created nomad user"
     else
-        log "  Nomad user already exists"
+        log_info "  Nomad user already exists"
     fi
     
-    log "✅ Service users verified"
+    log_info "✅ Service users verified"
 }
 
 # =============================================================================
@@ -186,7 +186,7 @@ validate_input() {
 }
 
 create_service_directories() {
-    log "Creating service directories..."
+    log_info "Creating service directories..."
     
     # Vault Agent directories
     mkdir -p /etc/vault-agent/templates
@@ -215,7 +215,7 @@ create_service_directories() {
 # =============================================================================
 
 create_host_volumes() {
-    log "Creating Nomad host volume directories..."
+    log_info "Creating Nomad host volume directories..."
     
     # Create host volumes directory
     mkdir -p /opt/nomad/host_volumes
@@ -240,14 +240,14 @@ create_host_volumes() {
 }
 
 create_vault_agent_config() {
-    log "Creating Vault Agent configuration..."
+    log_info "Creating Vault Agent configuration..."
     
     # Create backup of existing config if it exists
     if [ -f "/etc/vault-agent/vault-agent.hcl" ]; then
         local backup_file="/etc/vault-agent/vault-agent.hcl.backup.$(date +%Y%m%d_%H%M%S)"
-        log "Backing up existing Vault Agent config to: $backup_file"
+        log_info "Backing up existing Vault Agent config to: $backup_file"
         cp "/etc/vault-agent/vault-agent.hcl" "$backup_file"
-        log "✅ Backup created: $backup_file"
+        log_info "✅ Backup created: $backup_file"
     fi
     
     cat > /etc/vault-agent/vault-agent.hcl << EOF
@@ -291,11 +291,11 @@ template {
 }
 EOF
     
-    log "✅ Vault Agent config created"
+    log_info "✅ Vault Agent config created"
 }
 
 create_certificate_templates() {
-    log "Creating certificate templates..."
+    log_info "Creating certificate templates..."
     
     # CA certificate template
     cat > /etc/vault-agent/templates/ca-cert.tpl << 'EOF'
@@ -330,7 +330,7 @@ EOF
 }
 
 create_vault_token_file() {
-    log "Creating Vault token file..."
+    log_info "Creating Vault token file..."
     
     echo "$VAULT_TOKEN" > /etc/vault-agent/token
     chown vault:vault /etc/vault-agent/token
@@ -340,7 +340,7 @@ create_vault_token_file() {
 }
 
 create_vault_agent_service() {
-    log "Creating Vault Agent systemd service..."
+    log_info "Creating Vault Agent systemd service..."
     
     cat > /etc/systemd/system/vault-agent.service << EOF
 [Unit]
@@ -364,19 +364,19 @@ WantedBy=multi-user.target
 EOF
     
     systemctl daemon-reload
-    log "✅ Vault Agent service created"
+    log_info "✅ Vault Agent service created"
 }
 
 create_consul_config() {
-    log "Creating Consul configuration 1 2 3..."
+    log_info "Creating Consul configuration 1 2 3..."
     local bind_ip="${NETMAKER_IP}"
     
     # Create backup of existing config if it exists
     if [ -f "/etc/consul.d/consul.hcl" ]; then
         local backup_file="/etc/consul.d/consul.hcl.backup.$(date +%Y%m%d_%H%M%S)"
-        log "Backing up existing Consul config to: $backup_file"
+        log_info "Backing up existing Consul config to: $backup_file"
         cp "/etc/consul.d/consul.hcl" "$backup_file"
-        log "✅ Backup created: $backup_file"
+        log_info "✅ Backup created: $backup_file"
     fi
     
     cat > /etc/consul.d/consul.hcl << EOF
@@ -428,23 +428,23 @@ ui_config {
 auto_reload_config = true
 EOF
     
-    log "✅ Consul configuration created"
+    log_info "✅ Consul configuration created"
     chown consul:consul /etc/consul.d/consul.hcl
     chmod 640 /etc/consul.d/consul.hcl
     
-    log "Consul configuration generated with bind address: $bind_ip"
+    log_info "Consul configuration generated with bind address: $bind_ip"
 }
 
 create_nomad_config() {
-    log "Creating Nomad configuration..."
+    log_info "Creating Nomad configuration..."
     local bind_ip="${NETMAKER_IP}"
     
     # Create backup of existing config if it exists
     if [ -f "/etc/nomad.d/nomad.hcl" ]; then
         local backup_file="/etc/nomad.d/nomad.hcl.backup.$(date +%Y%m%d_%H%M%S)"
-        log "Backing up existing Nomad config to: $backup_file"
+        log_info "Backing up existing Nomad config to: $backup_file"
         cp "/etc/nomad.d/nomad.hcl" "$backup_file"
-        log "✅ Backup created: $backup_file"
+        log_info "✅ Backup created: $backup_file"
     fi
     
     cat > /etc/nomad.d/nomad.hcl << EOF
@@ -477,15 +477,15 @@ acl {
 }
 EOF
     
-    log "✅ Nomad configuration created"
+    log_info "✅ Nomad configuration created"
     chown nomad:nomad /etc/nomad.d/nomad.hcl
     chmod 640 /etc/nomad.d/nomad.hcl
     
-    log "Nomad configuration generated with bind address: $bind_ip"
+    log_info "Nomad configuration generated with bind address: $bind_ip"
 }
 
 create_consul_service() {
-    log "Creating Consul systemd service..."
+    log_info "Creating Consul systemd service..."
     
     cat > /etc/systemd/system/consul.service << EOF
 [Unit]
@@ -509,11 +509,11 @@ LimitNOFILE=65536
 WantedBy=multi-user.target
 EOF
     
-    log "✅ Consul service created"
+    log_info "✅ Consul service created"
 }
 
 create_nomad_service() {
-    log "Creating Nomad systemd service..."
+    log_info "Creating Nomad systemd service..."
     
     cat > /etc/systemd/system/nomad.service << EOF
 [Unit]
@@ -537,7 +537,7 @@ LimitNOFILE=65536
 WantedBy=multi-user.target
 EOF
     
-    log "✅ Nomad service created"
+    log_info "✅ Nomad service created"
 }
 
 start_services() {
@@ -622,7 +622,7 @@ start_services() {
 }
 
 check_service_status() {
-    log "Checking service status..."
+    log_info "Checking service status..."
     
     echo "=== Vault Agent Status ==="
     systemctl status vault-agent --no-pager || true
@@ -648,19 +648,19 @@ check_service_status() {
 
 setup_service_mesh() {
     export NODE_IP=$NETMAKER_IP
-    log "🚀 Starting Vault-based node bootstrap process..."
-    log "Node IP: $NODE_IP"
-    log "Vault Address: $VAULT_ADDR"
+    log_info "🚀 Starting Vault-based node bootstrap process..."
+    log_info "Node IP: $NODE_IP"
+    log_info "Vault Address: $VAULT_ADDR"
     
     # Check if running as root
     if [[ $EUID -ne 0 ]]; then
-        log "❌ This script must be run as root"
+        log_info "❌ This script must be run as root"
         exit 1
     fi
     
     # Validate node IP
     if [[ -z "$NODE_IP" ]]; then
-        log "❌ Could not determine node IP address"
+        log_info "❌ Could not determine node IP address"
         exit 1
     fi
     
@@ -685,21 +685,21 @@ setup_service_mesh() {
     create_nomad_service
     start_services
     
-    log "🎉 Node bootstrap completed successfully!"
-    log "Node $NODE_IP has been configured with Vault-based certificate management"
+    log_info "🎉 Node bootstrap completed successfully!"
+    log_info "Node $NODE_IP has been configured with Vault-based certificate management"
     
     # Show final status
     check_service_status
     
-    log "📋 Summary:"
-    log "  • Vault Agent: Automatically manages certificates (12h renewal)"
-    log "  • Consul: Configured with individual node certificate"
-    log "  • Nomad: Client node ready to join cluster"
-    log "  • Certificates: /etc/consul.d/tls/"
-    log ""
-    log "🔧 Monitoring commands:"
-    log "  • Check Vault Agent: sudo journalctl -u vault-agent -f"
-    log "  • Check Consul: sudo journalctl -u consul -f"
-    log "  • Check Nomad: sudo journalctl -u nomad -f"
-    log "  • View certificates: ls -la /etc/consul.d/tls/"
+    log_info "📋 Summary:"
+    log_info "  • Vault Agent: Automatically manages certificates (12h renewal)"
+    log_info "  • Consul: Configured with individual node certificate"
+    log_info "  • Nomad: Client node ready to join cluster"
+    log_info "  • Certificates: /etc/consul.d/tls/"
+    log_info ""
+    log_info "🔧 Monitoring commands:"
+    log_info "  • Check Vault Agent: sudo journalctl -u vault-agent -f"
+    log_info "  • Check Consul: sudo journalctl -u consul -f"
+    log_info "  • Check Nomad: sudo journalctl -u nomad -f"
+    log_info "  • View certificates: ls -la /etc/consul.d/tls/"
 }
