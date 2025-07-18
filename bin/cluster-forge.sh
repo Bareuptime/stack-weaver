@@ -323,6 +323,10 @@ execute_step() {
 guided_installation() {
     log_info "Starting Guided Installation Mode"
     log_info "You will be prompted for each step. You can choose to execute, skip, or quit."
+    log_warn "If you trying for the first time, we recommend executing all steps."
+    log_warn "You can also skip steps if you want to customize the installation later."
+    log_info "Press Enter to continue..."
+    read -r  # Wait for user input
     echo ""
     
     # Define installation steps with descriptions
