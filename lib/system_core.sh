@@ -390,7 +390,7 @@ configure_firewall() {
     log_info "Enabling UFW firewall with configured rules..."
     ufw --force enable
     
-    log_info "Firewall configuration completed successfully"
+    log_success "Firewall configuration completed successfully"
     log_info "Summary of opened ports:"
     log_info "  SSH: 22/tcp"
     log_info "  Netmaker VPN: $STATIC_PORT/udp"
