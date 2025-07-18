@@ -241,6 +241,49 @@ source_modules() {
 }
 
 # =============================================================================
+# NETMAKER DETECTION FUNCTIONS
+# =============================================================================
+
+detect_netmaker_ip() {
+    log_info "Attempting to detect existing Netmaker IP..."
+    
+    # Check if NETMAKER_IP is already set
+    if [[ -n "${NETMAKER_IP:-}" ]]; then
+        log_info "NETMAKER_IP already set to: $NETMAKER_IP"
+        return 0
+    fi
+    
+    # Check if netclient is installed and get netmaker interfaces
+    local netmaker_interface=$(ip link show 2>/dev/null | grep -o -E "(nm-[^:]*|netmaker)" | head -1)
+    if [[ -z "$netmaker_interface" ]]; then
+        log_warn "No Netmaker interface found (no nm-* or netmaker interface)"
+        log_warn "Unable to auto-detect Netmaker IP. You may need to set NETMAKER_IP manually."
+        return 1
+    fi
+    
+    # Get IP address from the interface
+    local netmaker_ip=$(ip addr show "$netmaker_interface" 2>/dev/null | grep -oP 'inet \K[0-9.]+' | head -1)
+    if [[ -z "$netmaker_ip" ]]; then
+        log_warn "Netmaker interface $netmaker_interface has no IP address"
+        log_warn "Unable to auto-detect Netmaker IP. You may need to set NETMAKER_IP manually."
+        return 1
+    fi
+    
+    # Test connectivity through the interface
+    if ! ping -c 1 -W 3 "$netmaker_ip" >/dev/null 2>&1; then
+        log_warn "Connectivity test failed for detected Netmaker IP: $netmaker_ip"
+        log_warn "The interface exists but may not be fully functional."
+    fi
+    
+    # Export the detected IP
+    export NETMAKER_IP="$netmaker_ip"
+    log_success "✓ Auto-detected Netmaker IP: $netmaker_ip"
+    log_info "  • Interface: $netmaker_interface"
+    
+    return 0
+}
+
+# =============================================================================
 # GUIDED INSTALLATION FUNCTIONS
 # =============================================================================
 
@@ -316,6 +359,12 @@ execute_step() {
                     exit 1
                     ;;
             esac
+        fi
+    else
+        # Handle special case when setup_netmaker is skipped
+        if [[ "$step_function" == "setup_netmaker" ]]; then
+            log_info "Netmaker setup skipped - attempting to auto-detect existing Netmaker IP..."
+            detect_netmaker_ip || true  # Don't fail if detection fails
         fi
     fi
 }
