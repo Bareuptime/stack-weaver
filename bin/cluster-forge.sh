@@ -249,9 +249,9 @@ main() {
     # Parse command line arguments
     parse_arguments "$@"
     
-    log_info "Starting Cluster Forge - Nomad/Consul/Netmaker setup..."
+    log_info "Starting Cluster Forge - Nomad/Consul/Netmaker [$ROLE] setup..."
     log_info "Role: $ROLE"
-    log_info "Server IP: $NOMAD_SERVER_IP"
+    log_info "Nomad Server IP: $NOMAD_SERVER_IP"
     log_info "Node Name: $NODE_NAME"
     log_info "Netmaker Token: [REDACTED]"
     

@@ -125,7 +125,7 @@ source_modules() {
 # =============================================================================
 
 main() {
-    log "Starting Cluster Forge - Nomad/Consul/Netmaker setup..."
+    log "Starting Cluster Forge - Nomad/Consul/Netmaker [$ROLE] setup..."
     log "Role: $ROLE"
     log "Server IP: $NOMAD_SERVER_IP"
     log "Node Name: $NODE_NAME"
