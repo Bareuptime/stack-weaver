@@ -429,7 +429,7 @@ create_consul_config() {
 datacenter = "$DATACENTER"
 data_dir = "/opt/consul"
 log_level = "INFO"
-name = "$NODE_NAME"
+node_name = "$NODE_NAME"
 bind_addr = "$bind_ip"
 client_addr = "0.0.0.0"
 retry_join = ["$CONSUL_SERVER_IP"]
@@ -499,7 +499,7 @@ data_dir = "/opt/nomad/data"
 log_level = "INFO"
 log_json = true
 log_file = "/opt/nomad/logs/"
-node_name = "$NODE_NAME"
+name = "$NODE_NAME"
 
 server {
   enabled = false
