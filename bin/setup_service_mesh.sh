@@ -8,6 +8,10 @@
 
 set -e
 
+# Source logging functions
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/../lib/logging.sh"
+
 
 ROLE="${ROLE:-client}"                    # server or client
 NOMAD_SERVER_IP="${NOMAD_SERVER_IP:-}"    # IP of the server node
@@ -202,7 +206,7 @@ create_service_directories() {
     mkdir -p /opt/nomad/logs
     
     # Set ownership
-    chown -R vault:vault /var/lib/vault-agent /var/log/vault-agent
+    chown -R root:root /var/lib/vault-agent /var/log/vault-agent
     chown -R consul:consul /etc/consul.d /opt/consul
     chown -R nomad:nomad /etc/nomad.d /opt/nomad
     # TLS directory needs to be owned by consul so consul service can read the certificates
@@ -277,18 +281,21 @@ template {
   source      = "/etc/vault-agent/templates/consul-cert.tpl"
   destination = "/etc/consul.d/tls/consul.pem"
   perms       = 0644
+  command     = "/etc/vault-agent/fix-consul-cert-ownership.sh"
 }
 
 template {
   source      = "/etc/vault-agent/templates/consul-key.tpl"
   destination = "/etc/consul.d/tls/consul-key.pem"
   perms       = 0600
+  command     = "/etc/vault-agent/fix-consul-key-ownership.sh"
 }
 
 template {
   source      = "/etc/vault-agent/templates/ca-cert.tpl"
   destination = "/etc/consul.d/tls/ca.pem"
   perms       = 0644
+  command     = "/etc/vault-agent/fix-ca-cert-ownership.sh"
 }
 EOF
     
@@ -330,11 +337,45 @@ EOF
     log_success "✅ Certificate templates created"
 }
 
+create_ownership_scripts() {
+    log_info "Creating certificate ownership scripts..."
+    
+    # Script for consul certificate
+    cat > /etc/vault-agent/fix-consul-cert-ownership.sh << 'EOF'
+#!/bin/bash
+chown consul:consul /etc/consul.d/tls/consul.pem
+chmod 644 /etc/consul.d/tls/consul.pem
+# Only reload if consul is already running
+if systemctl is-active --quiet consul; then
+    systemctl reload consul || true
+fi
+EOF
+    chmod +x /etc/vault-agent/fix-consul-cert-ownership.sh
+    
+    # Script for consul private key
+    cat > /etc/vault-agent/fix-consul-key-ownership.sh << 'EOF'
+#!/bin/bash
+chown consul:consul /etc/consul.d/tls/consul-key.pem
+chmod 600 /etc/consul.d/tls/consul-key.pem
+EOF
+    chmod +x /etc/vault-agent/fix-consul-key-ownership.sh
+    
+    # Script for CA certificate
+    cat > /etc/vault-agent/fix-ca-cert-ownership.sh << 'EOF'
+#!/bin/bash
+chown consul:consul /etc/consul.d/tls/ca.pem
+chmod 644 /etc/consul.d/tls/ca.pem
+EOF
+    chmod +x /etc/vault-agent/fix-ca-cert-ownership.sh
+    
+    log_success "✅ Certificate ownership scripts created"
+}
+
 create_vault_token_file() {
     log_info "Creating Vault token file..."
     
     echo "$VAULT_TOKEN" > /etc/vault-agent/token
-    chown vault:vault /etc/vault-agent/token
+    chown root:root /etc/vault-agent/token
     chmod 600 /etc/vault-agent/token
 
     log_success "✅ Vault token file created"
@@ -351,8 +392,8 @@ Wants=network.target
 
 [Service]
 Type=simple
-User=vault
-Group=vault
+User=root
+Group=root
 ExecStart=$VAULT_BIN agent -config=/etc/vault-agent/vault-agent.hcl
 ExecReload=/bin/kill -HUP \$MAINPID
 Restart=always
@@ -691,6 +732,7 @@ setup_service_mesh() {
     create_service_directories
     create_vault_agent_config
     create_certificate_templates
+    create_ownership_scripts
     create_vault_token_file
     create_vault_agent_service
     create_consul_config
