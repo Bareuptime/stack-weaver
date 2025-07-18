@@ -1,0 +1,288 @@
+name: Build and Release Cluster Forge Bundle
+
+on:
+  workflow_dispatch:
+    inputs:
+      maintainer_name:
+        description: 'Maintainer name for the binary'
+        required: true
+        default: 'Bareuptime'
+        type: string
+      ghc_token:
+        description: 'GitHub token for release (use secrets.GITHUB_TOKEN)'
+        required: true
+        type: string
+      release_tag:
+        description: 'Release tag (e.g., v1.0.0)'
+        required: true
+        type: string
+      prerelease:
+        description: 'Mark as pre-release'
+        required: false
+        default: false
+        type: boolean
+  push:
+    tags:
+      - 'v*'
+  release:
+    types: [published]
+
+env:
+  MAINTAINER_NAME: ${{ github.event.inputs.maintainer_name || 'Bareuptime' }}
+  BINARY_NAME: cluster-forge
+  ARCH: amd64
+
+jobs:
+  build-and-release:
+    name: Build Cluster Forge Bundle
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-20.04, ubuntu-22.04, debian-11, debian-12]
+        include:
+          - os: ubuntu-20.04
+            distro: ubuntu
+            version: focal
+          - os: ubuntu-22.04
+            distro: ubuntu
+            version: jammy
+          - os: debian-11
+            distro: debian
+            version: bullseye
+          - os: debian-12
+            distro: debian
+            version: bookworm
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up build environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            curl \
+            wget \
+            jq \
+            shellcheck \
+            bats
+
+      - name: Validate shell scripts
+        run: |
+          echo "🔍 Running ShellCheck validation..."
+          find . -name "*.sh" -not -path "./.git/*" | xargs shellcheck -S error
+          echo "✅ ShellCheck validation passed"
+
+      - name: Run bundler tests
+        run: |
+          echo "🧪 Testing bundler functionality..."
+          chmod +x bin/bundler.sh
+          ./bin/bundler.sh test-bundle.sh
+          
+          # Test bundled script syntax
+          bash -n test-bundle.sh
+          echo "✅ Bundle syntax validation passed"
+          
+          # Test help functionality
+          ./test-bundle.sh --help > /dev/null
+          echo "✅ Help functionality test passed"
+          
+          # Clean up test bundle
+          rm -f test-bundle.sh
+
+      - name: Get version information
+        id: version
+        run: |
+          # Get version from git tag or use timestamp
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            VERSION="${{ github.ref_name }}"
+          elif [[ -n "${{ github.event.inputs.release_tag }}" ]]; then
+            VERSION="${{ github.event.inputs.release_tag }}"
+          else
+            VERSION="v$(date +%Y%m%d-%H%M%S)"
+          fi
+          
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "🏷️ Version: ${VERSION}"
+
+      - name: Create production bundle
+        id: bundle
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          DISTRO="${{ matrix.distro }}"
+          OS_VERSION="${{ matrix.version }}"
+          
+          BUNDLE_NAME="${BINARY_NAME}-${VERSION}-linux-${ARCH}-${DISTRO}-${OS_VERSION}"
+          
+          echo "📦 Creating bundle: ${BUNDLE_NAME}"
+          
+          # Create the bundle
+          chmod +x bin/bundler.sh
+          ./bin/bundler.sh "${BUNDLE_NAME}"
+          
+          # Add metadata to the bundle
+          cat >> "${BUNDLE_NAME}" << 'EOF_METADATA'
+
+          # =============================================================================
+          # BUNDLE METADATA
+          # =============================================================================
+          EOF_METADATA
+          
+          # Make sure it's executable
+          chmod +x "${BUNDLE_NAME}"
+          
+          # Test the final bundle
+          echo "🧪 Testing final bundle..."
+          "./${BUNDLE_NAME}" --help > /dev/null
+          "./${BUNDLE_NAME}" --version > /dev/null || true
+          
+          # Create checksum
+          sha256sum "${BUNDLE_NAME}" > "${BUNDLE_NAME}.sha256"
+          
+          echo "bundle_name=${BUNDLE_NAME}" >> $GITHUB_OUTPUT
+          echo "bundle_path=./${BUNDLE_NAME}" >> $GITHUB_OUTPUT
+          echo "checksum_path=./${BUNDLE_NAME}.sha256" >> $GITHUB_OUTPUT
+          
+          # Show bundle info
+          ls -lh "${BUNDLE_NAME}"
+          echo "📊 Bundle created successfully: ${BUNDLE_NAME}"
+
+      - name: Create release notes
+        id: release_notes
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          
+          cat > release_notes.md << 'EOF_NOTES'
+          # Cluster Forge ${VERSION}
+          
+          ## 🚀 What's New
+          
+          This release provides a bundled version of Cluster Forge that can be deployed as a single executable.
+          
+          ## 📦 Available Binaries
+          
+          - **Platform**: Linux AMD64
+          - **Compatible OS**: 
+            - Ubuntu 20.04 (Focal)
+            - Ubuntu 22.04 (Jammy) 
+            - Debian 11 (Bullseye)
+            - Debian 12 (Bookworm)
+          
+          ## 🔧 Usage
+          
+          1. Download the appropriate binary for your system
+          2. Make it executable: \`chmod +x cluster-forge-*\`
+          3. Run with environment variables
+          
+          ## 🔒 Security
+          
+          - Verify checksums before running
+          - Always run with appropriate permissions
+          - Review environment variables for secrets
+          
+          ## 📋 Requirements
+          
+          - Linux AMD64 system
+          - Root privileges for deployment
+          - Required environment variables (see documentation)
+          EOF_NOTES
+          
+          echo "Created release notes"
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: cluster-forge-${{ matrix.os }}-${{ steps.version.outputs.version }}
+          path: |
+            ${{ steps.bundle.outputs.bundle_path }}
+            ${{ steps.bundle.outputs.checksum_path }}
+          retention-days: 30
+
+  create-release:
+    name: Create GitHub Release
+    needs: build-and-release
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || github.ref_type == 'tag'
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p release-assets
+          find artifacts -name "cluster-forge-*" -type f -exec cp {} release-assets/ \;
+          ls -la release-assets/
+
+      - name: Get version
+        id: version
+        run: |
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            VERSION="${{ github.ref_name }}"
+          else
+            VERSION="${{ github.event.inputs.release_tag }}"
+          fi
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.version.outputs.version }}
+          name: "Cluster Forge ${{ steps.version.outputs.version }}"
+          body_path: artifacts/cluster-forge-ubuntu-22.04-${{ steps.version.outputs.version }}/release_notes.md
+          files: release-assets/*
+          draft: false
+          prerelease: ${{ github.event.inputs.prerelease || false }}
+          token: ${{ github.event.inputs.ghc_token || secrets.GITHUB_TOKEN }}
+
+  test-integration:
+    name: Integration Tests
+    needs: build-and-release
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os-image: 
+          - ubuntu:20.04
+          - ubuntu:22.04
+          - debian:11
+          - debian:12
+    
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: cluster-forge-*
+          merge-multiple: true
+
+      - name: Test bundle in container
+        run: |
+          # Find the appropriate bundle for this test
+          BUNDLE=$(find . -name "cluster-forge-*linux-amd64*" -type f -executable | head -1)
+          
+          if [[ -z "$BUNDLE" ]]; then
+            echo "❌ No bundle found for testing"
+            exit 1
+          fi
+          
+          echo "🧪 Testing bundle: $BUNDLE"
+          echo "🐳 Testing in container: ${{ matrix.os-image }}"
+          
+          # Test in Docker container
+          docker run --rm -v "$PWD:/workspace" -w /workspace ${{ matrix.os-image }} bash -c '
+            apt-get update -qq
+            apt-get install -y ca-certificates curl
+            chmod +x '"$BUNDLE"'
+            echo "Testing help command..."
+            ./'"$BUNDLE"' --help
+            echo "Testing validation with dummy values..."
+            NETMAKER_TOKEN="test" NOMAD_SERVER_IP="127.0.0.1" CONSUL_SERVER_IP="127.0.0.1" CONSUL_AGENT_TOKEN="test" VAULT_ADDR="http://localhost:8200" VAULT_TOKEN="test" ./'"$BUNDLE"' --validate-only
+            echo "✅ Integration test passed for ${{ matrix.os-image }}"
+          '

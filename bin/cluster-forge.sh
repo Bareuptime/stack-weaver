@@ -93,6 +93,8 @@ EOF
 show_version() {
     echo "Cluster Forge v1.0.0"
     echo "Nomad/Consul/Netmaker cluster setup tool"
+    echo "Built: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
+    echo "Repository: https://github.com/Bareuptime/stack-weaver"
 }
 
 # =============================================================================
