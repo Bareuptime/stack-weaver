@@ -425,42 +425,84 @@ EOF
 }
 
 start_services() {
-    log "Starting services..."
+    log_info "Starting services..."
     
     systemctl daemon-reload
     
     # Start Vault Agent first
     systemctl enable vault-agent
     systemctl start vault-agent
-    log "Vault Agent started"
+    log_info "Vault Agent started"
     
     # Wait for certificates to be generated
-    log "Waiting for certificates to be generated..."
+    log_info "Waiting for certificates to be generated..."
     for i in {1..60}; do
         if [ -f "/etc/consul.d/tls/consul.pem" ] && [ -f "/etc/consul.d/tls/consul-key.pem" ]; then
-            log "✅ Certificates generated successfully"
+            log_info "✅ Certificates generated successfully"
             break
         fi
         sleep 2
         if [ $i -eq 60 ]; then
-            log "⚠️  Timeout waiting for certificates"
+            log_info "⚠️  Timeout waiting for certificates"
         fi
     done
     
     # Start Consul
     systemctl enable consul
-    systemctl start consul
-    log "Consul started"
+    
+    # Try to start Consul with timeout handling
+    log_info "Starting Consul (with timeout protection)..."
+    if timeout 30 systemctl start consul; then
+        log_info "Consul started successfully"
+    else
+        log_info "⚠️  Consul start command timed out, checking if service is actually running..."
+        
+        # Check if Consul is actually running despite the timeout
+        sleep 3
+        if systemctl is-active --quiet consul; then
+            log_success "✅ Consul is running (timeout was false positive)"
+        else
+            log_info "❌ Consul failed to start properly"
+            # Try to get more information about the failure
+            log_info "Consul status:"
+            systemctl status consul --no-pager || true
+            log_info "Recent Consul log_infos:"
+            journalctl -u consul --no-pager -n 20 || true
+            log_error "Failed to start Consul service"
+            return 1
+        fi
+    fi
     
     # Wait for Consul to be ready
     sleep 5
     
     # Start Nomad
     systemctl enable nomad
-    systemctl start nomad
-    log "Nomad started"
     
-    log "✅ All services started"
+    # Try to start Nomad with timeout handling
+    log_info "Starting Nomad (with timeout protection)..."
+    if timeout 30 systemctl start nomad; then
+        log_info "Nomad started successfully"
+    else
+        log_info "⚠️  Nomad start command timed out, checking if service is actually running..."
+        
+        # Check if Nomad is actually running despite the timeout
+        sleep 3
+        if systemctl is-active --quiet nomad; then
+            log_success "✅ Nomad is running (timeout was false positive)"
+        else
+            log_info "❌ Nomad failed to start properly"
+            # Try to get more information about the failure
+            log_info "Nomad status:"
+            systemctl status nomad --no-pager || true
+            log_info "Recent Nomad logs:"
+            journalctl -u nomad --no-pager -n 20 || true
+            log_error "Failed to start Nomad service"
+            return 1
+        fi
+    fi
+    
+    log_success "✅ All services started"
 }
 
 check_service_status() {
