@@ -298,21 +298,30 @@ prompt_user() {
     log_info "=========================================="
     
     while true; do
-        read -p "Execute this step? [Y]es/[N]o/[Q]uit: " choice
+        echo -n "Execute this step? [Y]es/[N]o/[Q]uit: "
+        
+        # Read a single character without requiring Enter
+        read -n 1 -s choice
+        echo "$choice"  # Echo the pressed key
+        
         case $choice in
-            [Yy]|[Yy][Ee][Ss]|"")
+            [Yy]|"")
+                echo
                 return 0  # Execute
                 ;;
-            [Nn]|[Nn][Oo])
+            [Nn])
+                echo
                 log_info "Skipping: $step_name"
                 return 1  # Skip
                 ;;
-            [Qq]|[Qq][Uu][Ii][Tt])
+            [Qq])
+                echo
                 log_info "Installation aborted by user."
                 exit 0
                 ;;
             *)
-                echo "Please enter Y for Yes, N for No, or Q for Quit."
+                echo
+                echo "Please press Y for Yes, N for No, or Q for Quit."
                 ;;
         esac
     done
