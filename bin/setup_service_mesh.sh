@@ -276,7 +276,7 @@ EOF
 }
 
 create_consul_config() {
-    log "Creating Consul configuration..."
+    log "Creating Consul configuration 1 2 3..."
     local bind_ip="${NETMAKER_IP}"
     
     # Create backup of existing config if it exists
