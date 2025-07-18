@@ -14,8 +14,6 @@ export NETMAKER_TOKEN="your-netmaker-enrollment-token-here"
 export NOMAD_SERVER_IP="10.0.1.10"     # IP of the Nomad server node
 export CONSUL_SERVER_IP="10.0.1.10"    # IP of the Consul server node (usually same as Nomad)
 
-# Authentication tokens
-export CONSUL_AGENT_TOKEN="your-consul-agent-token-here"  # Consul ACL token for agents
 
 # Vault configuration
 export VAULT_ADDR="https://vault.example.com:8200"       # Vault server address

@@ -28,7 +28,6 @@ DATACENTER="${DATACENTER:-dc1}"           # Datacenter name
 ENCRYPT_KEY="${ENCRYPT_KEY:-}"            # Consul encryption key (auto-generated if empty)
 NETMAKER_TOKEN="${NETMAKER_TOKEN:-}"      # Netmaker enrollment token (mandatory)
 STATIC_PORT="${STATIC_PORT:-51821}"       # Netmaker static port
-CONSUL_AGENT_TOKEN="${CONSUL_AGENT_TOKEN:-}"  # Consul agent token (mandatory)
 VAULT_ADDR="${VAULT_ADDR:-}"
 VAULT_TOKEN="${VAULT_TOKEN:-}"
 
@@ -51,7 +50,6 @@ REQUIRED ENVIRONMENT VARIABLES:
     NETMAKER_TOKEN        Netmaker enrollment token
     NOMAD_SERVER_IP       IP address of the Nomad server node
     CONSUL_SERVER_IP      IP address of the Consul server node
-    CONSUL_AGENT_TOKEN    Consul agent token for authentication
     VAULT_ADDR           Vault server address
     VAULT_TOKEN          Vault authentication token
 
@@ -71,19 +69,19 @@ OPTIONS:
 EXAMPLES:
     # Server node setup
     sudo NETMAKER_TOKEN="xyz123" ROLE=server NOMAD_SERVER_IP=10.0.1.10 \\
-         CONSUL_SERVER_IP=10.0.1.10 CONSUL_AGENT_TOKEN="abc123" \\
+         CONSUL_SERVER_IP=10.0.1.10 \\
          VAULT_ADDR="https://vault.example.com:8200" VAULT_TOKEN="def456" \\
          $0
 
     # Client node setup
     sudo NETMAKER_TOKEN="xyz123" ROLE=client NOMAD_SERVER_IP=10.0.1.10 \\
-         CONSUL_SERVER_IP=10.0.1.10 CONSUL_AGENT_TOKEN="abc123" \\
+         CONSUL_SERVER_IP=10.0.1.10 \\
          VAULT_ADDR="https://vault.example.com:8200" VAULT_TOKEN="def456" \\
          $0
 
     # Validate configuration only
     NETMAKER_TOKEN="xyz123" NOMAD_SERVER_IP=10.0.1.10 \\
-    CONSUL_SERVER_IP=10.0.1.10 CONSUL_AGENT_TOKEN="abc123" \\
+    CONSUL_SERVER_IP=10.0.1.10 \\
     VAULT_ADDR="https://vault.example.com:8200" VAULT_TOKEN="def456" \\
     $0 --validate-only
 
@@ -173,11 +171,6 @@ validate_input() {
     # Validate required tokens
     if [[ -z "$NETMAKER_TOKEN" ]]; then
         log_error "NETMAKER_TOKEN is mandatory. Please provide the Netmaker enrollment token."
-        ((errors++))
-    fi
-
-    if [[ -z "$CONSUL_AGENT_TOKEN" ]]; then
-        log_error "CONSUL_AGENT_TOKEN is mandatory. Please provide the Consul agent token."
         ((errors++))
     fi
     

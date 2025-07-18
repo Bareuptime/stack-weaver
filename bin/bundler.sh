@@ -152,7 +152,7 @@ EOF_SETUP_COMMENT
 
 # Extract function definitions from setup_service_mesh.sh (skip shebang, set commands, and initial comments)
 sed -e '1,/^# =============================================================================$/d' \
-    -e '/^ROLE=\|^NOMAD_SERVER_IP=\|^CONSUL_SERVER_IP=\|^NODE_NAME=\|^DATACENTER=\|^ENCRYPT_KEY=\|^NETMAKER_TOKEN=\|^STATIC_PORT=\|^CONSUL_AGENT_TOKEN=\|^VAULT_ADDR=\|^VAULT_TOKEN=/d' \
+    -e '/^ROLE=\|^NOMAD_SERVER_IP=\|^CONSUL_SERVER_IP=\|^NODE_NAME=\|^DATACENTER=\|^ENCRYPT_KEY=\|^NETMAKER_TOKEN=\|^STATIC_PORT=\|^VAULT_ADDR=\|^VAULT_TOKEN=/d' \
     -e '/^error()/,/^}$/d' \
     -e '/^validate_input()/,/^}$/d' \
     -e '/^# Run main function$/,$d' \
@@ -170,7 +170,7 @@ EOF_CLIENT_COMMENT
 
 # Extract function definitions from configure_client_service_mesh.sh (skip shebang, set commands, and initial comments)
 sed -e '1,/^# =============================================================================$/d' \
-    -e '/^ROLE=\|^NOMAD_SERVER_IP=\|^CONSUL_SERVER_IP=\|^NODE_NAME=\|^DATACENTER=\|^ENCRYPT_KEY=\|^NETMAKER_TOKEN=\|^STATIC_PORT=\|^CONSUL_AGENT_TOKEN=\|^VAULT_ADDR=\|^VAULT_TOKEN=/d' \
+    -e '/^ROLE=\|^NOMAD_SERVER_IP=\|^CONSUL_SERVER_IP=\|^NODE_NAME=\|^DATACENTER=\|^ENCRYPT_KEY=\|^NETMAKER_TOKEN=\|^STATIC_PORT=\|^VAULT_ADDR=\|^VAULT_TOKEN=/d' \
     -e '/^error()/,/^}$/d' \
     -e '/^validate_input()/,/^}$/d' \
     -e '/^# Run main function$/,$d' \
@@ -201,12 +201,10 @@ log_info ""
 log_info "Usage examples:"
 log_info "  # Validate configuration only"
 log_info "  NETMAKER_TOKEN='xyz' NOMAD_SERVER_IP='10.0.1.10' CONSUL_SERVER_IP='10.0.1.10' \\"
-log_info "  CONSUL_AGENT_TOKEN='abc' VAULT_ADDR='https://vault:8200' VAULT_TOKEN='def' \\"
 log_info "  ./$OUTPUT_FILE --validate-only"
 log_info ""
 log_info "  # Run full deployment"
 log_info "  sudo NETMAKER_TOKEN='xyz' NOMAD_SERVER_IP='10.0.1.10' CONSUL_SERVER_IP='10.0.1.10' \\"
-log_info "  CONSUL_AGENT_TOKEN='abc' VAULT_ADDR='https://vault:8200' VAULT_TOKEN='def' \\"
 log_info "  ./$OUTPUT_FILE"
 log_info ""
 log_info "  # Show help"

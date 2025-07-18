@@ -37,7 +37,6 @@ DATACENTER="${DATACENTER:-dc1}"           # Datacenter name
 ENCRYPT_KEY="${ENCRYPT_KEY:-}"            # Consul encryption key (auto-generated if empty)
 NETMAKER_TOKEN="${NETMAKER_TOKEN:-}"      # Netmaker enrollment token (mandatory)
 STATIC_PORT="${STATIC_PORT:-51821}"       # Netmaker static port
-CONSUL_AGENT_TOKEN="${CONSUL_AGENT_TOKEN:-}"  # Consul agent token (mandatory)
 VAULT_ADDR="${VAULT_ADDR:-}"
 VAULT_TOKEN="${VAULT_TOKEN:-}"
 
@@ -78,10 +77,6 @@ validate_input() {
 
     if [[ -z "$NETMAKER_TOKEN" ]]; then
         error "NETMAKER_TOKEN is mandatory. Please provide the Netmaker enrollment token."
-    fi
-
-    if [[ -z "$CONSUL_AGENT_TOKEN" ]]; then
-        error "CONSUL_AGENT_TOKEN is mandatory. Please provide the Consul agent token."
     fi
 
     if [[ -z "$VAULT_ADDR" ]]; then
