@@ -9,7 +9,44 @@ IFS=$'\n\t'
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-OUTPUT_FILE="${1:-cluster-forge-bundled.sh}"
+OUTPUT_FILE="cluster-forge-bundled.sh"
+VALIDATE_ONLY=false
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --output)
+            OUTPUT_FILE="$2"
+            shift 2
+            ;;
+        --validate)
+            VALIDATE_ONLY=true
+            shift
+            ;;
+        -h|--help)
+            echo "Cluster Forge Bundler - Creates single executable from modular scripts"
+            echo ""
+            echo "USAGE:"
+            echo "    $0 [OPTIONS]"
+            echo ""
+            echo "OPTIONS:"
+            echo "    --output FILE       Output filename (default: cluster-forge-bundled.sh)"
+            echo "    --validate          Validate the bundled script with shellcheck"
+            echo "    -h, --help          Show this help message"
+            echo ""
+            echo "EXAMPLES:"
+            echo "    $0                                    # Create cluster-forge-bundled.sh"
+            echo "    $0 --output my-bundle.sh              # Create my-bundle.sh"
+            echo "    $0 --output cluster-forge --validate  # Create and validate"
+            exit 0
+            ;;
+        *)
+            log_error "Unknown option: $1"
+            echo "Use --help for usage information"
+            exit 1
+            ;;
+    esac
+done
 
 # Colors for output
 RED='\033[0;31m'
@@ -182,6 +219,20 @@ if bash -n "$OUTPUT_FILE"; then
 else
     log_error "✗ Syntax check failed"
     exit 1
+fi
+
+# Run shellcheck if validation requested and available
+if [[ "$VALIDATE_ONLY" == "true" ]]; then
+    if command -v shellcheck &> /dev/null; then
+        log_info "Running shellcheck validation..."
+        if shellcheck "$OUTPUT_FILE"; then
+            log_info "✓ ShellCheck validation passed"
+        else
+            log_warn "⚠ ShellCheck found issues (see above)"
+        fi
+    else
+        log_warn "ShellCheck not available - install it for enhanced validation"
+    fi
 fi
 
 # Show file size
