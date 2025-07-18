@@ -74,7 +74,7 @@ log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"
 }
 
-create_directories() {
+create_service_directories() {
     log "Creating service directories..."
     
     # Vault Agent directories
@@ -97,6 +97,35 @@ create_directories() {
     chown -R vault:vault /etc/consul.d/tls
     
     log "✅ Directories created"
+}
+
+# =============================================================================
+# CREATE HOST VOLUMES
+# =============================================================================
+
+create_host_volumes() {
+    log "Creating Nomad host volume directories..."
+    
+    # Create host volumes directory
+    mkdir -p /opt/nomad/host_volumes
+    
+    # Create some common host volumes
+    local volumes=(
+        "/opt/nomad/host_volumes/data"
+        "/opt/nomad/host_volumes/logs"
+        "/opt/nomad/host_volumes/config"
+        "/opt/nomad/host_volumes/netmaker-data"
+    )
+    
+    for volume in "${volumes[@]}"; do
+        mkdir -p "$volume"
+        chown nomad:nomad "$volume"
+        chmod 755 "$volume"
+    done
+    
+    chown -R nomad:nomad /opt/nomad
+    
+    log "Host volumes created"
 }
 
 create_vault_agent_config() {
@@ -457,7 +486,8 @@ main() {
         exit 1
     fi
     
-    create_directories
+    create_host_volumes
+    create_service_directories
     create_vault_agent_config
     create_certificate_templates
     create_vault_token_file

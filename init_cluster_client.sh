@@ -589,38 +589,9 @@ install_hashicorp_tools() {
     log "Nomad and Consul installation completed"
 }
 
-setup_service_mesh() {
+configure_client_c() {
     log "Setting up Consul service mesh..."
     ./
-    
-}
-# =============================================================================
-# CREATE HOST VOLUMES
-# =============================================================================
-
-create_host_volumes() {
-    log "Creating Nomad host volume directories..."
-    
-    # Create host volumes directory
-    mkdir -p /opt/nomad/host_volumes
-    
-    # Create some common host volumes
-    local volumes=(
-        "/opt/nomad/host_volumes/data"
-        "/opt/nomad/host_volumes/logs"
-        "/opt/nomad/host_volumes/config"
-        "/opt/nomad/host_volumes/netmaker-data"
-    )
-    
-    for volume in "${volumes[@]}"; do
-        mkdir -p "$volume"
-        chown nomad:nomad "$volume"
-        chmod 755 "$volume"
-    done
-    
-    chown -R nomad:nomad /opt/nomad
-    
-    log "Host volumes created"
 }
 
 # =============================================================================
@@ -788,9 +759,6 @@ main() {
     reload_dns_services
     configure_firewall
     install_hashicorp_tools
-    generate_consul_config
-    generate_nomad_config
-    create_host_volumes
     start_services
     
     if validate_installation; then
