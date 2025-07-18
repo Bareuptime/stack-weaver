@@ -27,6 +27,124 @@ error() {
 }
 
 # =============================================================================
+# BINARY PATH DETECTION
+# =============================================================================
+
+detect_binary_paths() {
+    log "Detecting binary paths..."
+    
+    # Detect Vault binary
+    VAULT_BIN=""
+    for path in "/usr/bin/vault" "/usr/local/bin/vault" "/opt/vault/bin/vault"; do
+        if [ -x "$path" ]; then
+            VAULT_BIN="$path"
+            break
+        fi
+    done
+    
+    if [ -z "$VAULT_BIN" ]; then
+        VAULT_BIN=$(which vault 2>/dev/null || echo "")
+    fi
+    
+    if [ -z "$VAULT_BIN" ]; then
+        error "Vault binary not found. Please install Vault first."
+    fi
+    
+    # Detect Consul binary
+    CONSUL_BIN=""
+    for path in "/usr/bin/consul" "/usr/local/bin/consul" "/opt/consul/bin/consul"; do
+        if [ -x "$path" ]; then
+            CONSUL_BIN="$path"
+            break
+        fi
+    done
+    
+    if [ -z "$CONSUL_BIN" ]; then
+        CONSUL_BIN=$(which consul 2>/dev/null || echo "")
+    fi
+    
+    if [ -z "$CONSUL_BIN" ]; then
+        error "Consul binary not found. Please install Consul first."
+    fi
+    
+    # Detect Nomad binary
+    NOMAD_BIN=""
+    for path in "/usr/bin/nomad" "/usr/local/bin/nomad" "/opt/nomad/bin/nomad"; do
+        if [ -x "$path" ]; then
+            NOMAD_BIN="$path"
+            break
+        fi
+    done
+    
+    if [ -z "$NOMAD_BIN" ]; then
+        NOMAD_BIN=$(which nomad 2>/dev/null || echo "")
+    fi
+    
+    if [ -z "$NOMAD_BIN" ]; then
+        error "Nomad binary not found. Please install Nomad first."
+    fi
+    
+    log "✅ Binary paths detected:"
+    log "  Vault: $VAULT_BIN"
+    log "  Consul: $CONSUL_BIN"
+    log "  Nomad: $NOMAD_BIN"
+}
+
+verify_binary_versions() {
+    log "Verifying binary versions..."
+    
+    # Check Vault version
+    if ! VAULT_VERSION=$("$VAULT_BIN" version 2>/dev/null | head -n1); then
+        error "Failed to get Vault version from $VAULT_BIN"
+    fi
+    log "  Vault: $VAULT_VERSION"
+    
+    # Check Consul version
+    if ! CONSUL_VERSION=$("$CONSUL_BIN" version 2>/dev/null | head -n1); then
+        error "Failed to get Consul version from $CONSUL_BIN"
+    fi
+    log "  Consul: $CONSUL_VERSION"
+    
+    # Check Nomad version
+    if ! NOMAD_VERSION=$("$NOMAD_BIN" version 2>/dev/null | head -n1); then
+        error "Failed to get Nomad version from $NOMAD_BIN"
+    fi
+    log "  Nomad: $NOMAD_VERSION"
+    
+    log "✅ All binaries are functional"
+}
+
+create_service_users() {
+    log "Creating service users..."
+    
+    # Create vault user if it doesn't exist
+    if ! id -u vault >/dev/null 2>&1; then
+        useradd --system --home /var/lib/vault --shell /bin/false vault
+        log "✅ Created vault user"
+    else
+        log "  Vault user already exists"
+    fi
+    
+    # Create consul user if it doesn't exist
+    if ! id -u consul >/dev/null 2>&1; then
+        useradd --system --home /opt/consul --shell /bin/false consul
+        log "✅ Created consul user"
+    else
+        log "  Consul user already exists"
+    fi
+    
+    # Create nomad user if it doesn't exist
+    if ! id -u nomad >/dev/null 2>&1; then
+        useradd --system --home /opt/nomad --shell /bin/false nomad
+        log "✅ Created nomad user"
+    else
+        log "  Nomad user already exists"
+    fi
+    
+    log "✅ Service users verified"
+}
+
+# =============================================================================
 # VALIDATION
 # =============================================================================
 
@@ -65,11 +183,6 @@ validate_input() {
     if [[ -z "$VAULT_TOKEN" ]]; then
         error "VAULT_TOKEN must be set to the Vault authentication token"
     fi
-}
-
-
-log() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"
 }
 
 create_service_directories() {
@@ -229,7 +342,7 @@ create_vault_token_file() {
 create_vault_agent_service() {
     log "Creating Vault Agent systemd service..."
     
-    cat > /etc/systemd/system/vault-agent.service << 'EOF'
+    cat > /etc/systemd/system/vault-agent.service << EOF
 [Unit]
 Description=Vault Agent
 After=network.target
@@ -239,8 +352,8 @@ Wants=network.target
 Type=simple
 User=vault
 Group=vault
-ExecStart=/usr/local/bin/vault agent -config=/etc/vault-agent/vault-agent.hcl
-ExecReload=/bin/kill -HUP $MAINPID
+ExecStart=$VAULT_BIN agent -config=/etc/vault-agent/vault-agent.hcl
+ExecReload=/bin/kill -HUP \$MAINPID
 Restart=always
 RestartSec=5
 StandardOutput=journal
@@ -374,7 +487,7 @@ EOF
 create_consul_service() {
     log "Creating Consul systemd service..."
     
-    cat > /etc/systemd/system/consul.service << 'EOF'
+    cat > /etc/systemd/system/consul.service << EOF
 [Unit]
 Description=Consul
 Documentation=https://www.consul.io/
@@ -386,8 +499,8 @@ ConditionFileNotEmpty=/etc/consul.d/consul.hcl
 Type=simple
 User=consul
 Group=consul
-ExecStart=/usr/local/bin/consul agent -config-dir=/etc/consul.d/
-ExecReload=/bin/kill -HUP $MAINPID
+ExecStart=$CONSUL_BIN agent -config-dir=/etc/consul.d/
+ExecReload=/bin/kill -HUP \$MAINPID
 KillMode=process
 Restart=on-failure
 LimitNOFILE=65536
@@ -402,7 +515,7 @@ EOF
 create_nomad_service() {
     log "Creating Nomad systemd service..."
     
-    cat > /etc/systemd/system/nomad.service << 'EOF'
+    cat > /etc/systemd/system/nomad.service << EOF
 [Unit]
 Description=Nomad
 Documentation=https://www.nomadproject.io/
@@ -414,8 +527,8 @@ ConditionFileNotEmpty=/etc/nomad.d/nomad.hcl
 Type=notify
 User=root
 Group=root
-ExecStart=/usr/local/bin/nomad agent -config=/etc/nomad.d/nomad.hcl
-ExecReload=/bin/kill -HUP $MAINPID
+ExecStart=$NOMAD_BIN agent -config=/etc/nomad.d/nomad.hcl
+ExecReload=/bin/kill -HUP \$MAINPID
 KillMode=process
 Restart=on-failure
 LimitNOFILE=65536
@@ -550,6 +663,15 @@ setup_service_mesh() {
         log "❌ Could not determine node IP address"
         exit 1
     fi
+    
+    # Detect binary paths before proceeding
+    detect_binary_paths
+    
+    # Verify that binaries are functional
+    verify_binary_versions
+    
+    # Create service users
+    create_service_users
     
     create_host_volumes
     create_service_directories
