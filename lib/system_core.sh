@@ -320,7 +320,7 @@ reload_dns_services() {
 # FIREWALL CONFIGURATION
 # =============================================================================
 
-configure_firewall() {
+install_hashicorp_tools() {
     log_info "Configuring firewall..."
     log_info "Opening required ports for HashiCorp stack and network communication..."
     
@@ -559,7 +559,7 @@ install_hashicorp_tools() {
         local nomad_ver=$(nomad version | head -1)
         local consul_ver=$(consul version | head -1)
         local vault_ver=$(vault version | head -1)
-        log_info "✓ Installation successful:"
+        log_success "✓ Installation successful:"
         log_info "  • $nomad_ver"
         log_info "  • $consul_ver"
         log_info "  • $vault_ver"
@@ -568,7 +568,7 @@ install_hashicorp_tools() {
         return 1
     fi
     
-    log_info "HashiCorp tools installation completed"
+    log_success "HashiCorp tools installation completed"
 }
 
 # =============================================================================
