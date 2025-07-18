@@ -31,6 +31,9 @@ STATIC_PORT="${STATIC_PORT:-51821}"       # Netmaker static port
 VAULT_ADDR="${VAULT_ADDR:-}"
 VAULT_TOKEN="${VAULT_TOKEN:-}"
 
+# Guided installation settings
+GUIDED_MODE="${GUIDED_MODE:-false}"           # Enable guided installation mode
+
 # =============================================================================
 # HELP AND USAGE
 # =============================================================================
@@ -65,6 +68,7 @@ OPTIONS:
     -v, --version       Show version information
     --validate-only     Only validate environment variables, don't run setup
     --dry-run          Show what would be done without making changes
+    --guided           Enable guided installation mode with step-by-step prompts
 
 EXAMPLES:
     # Server node setup
@@ -85,6 +89,9 @@ EXAMPLES:
     VAULT_ADDR="https://vault.example.com:8200" VAULT_TOKEN="def456" \\
     $0 --validate-only
 
+    # Guided installation mode
+    sudo $0 --guided
+
 EOF
 }
 
@@ -101,6 +108,7 @@ show_version() {
 
 VALIDATE_ONLY=false
 DRY_RUN=false
+GUIDED_MODE=false
 
 parse_arguments() {
     while [[ $# -gt 0 ]]; do
@@ -121,6 +129,10 @@ parse_arguments() {
                 DRY_RUN=true
                 shift
                 ;;
+            --guided)
+                GUIDED_MODE=true
+                shift
+                ;;
             *)
                 log_error "Unknown option: $1"
                 echo "Use --help for usage information"
@@ -139,10 +151,12 @@ validate_input() {
     
     log_info "Validating configuration..."
     
-    # Check if running as root (unless validate-only or dry-run)
-    if [[ "$VALIDATE_ONLY" == false && "$DRY_RUN" == false && $EUID -ne 0 ]]; then
+    # Check if running as root (unless validate-only, dry-run, or guided mode)
+    if [[ "$VALIDATE_ONLY" == false && "$DRY_RUN" == false && "$GUIDED_MODE" == false && $EUID -ne 0 ]]; then
         log_error "This script must be run as root for actual deployment"
         ((errors++))
+    elif [[ "$GUIDED_MODE" == true && $EUID -ne 0 ]]; then
+        log_warn "Guided mode: You are not running as root. Some steps may require sudo privileges."
     fi
     
     # Validate role
@@ -227,6 +241,137 @@ source_modules() {
 }
 
 # =============================================================================
+# GUIDED INSTALLATION FUNCTIONS
+# =============================================================================
+
+prompt_user() {
+    local step_name="$1"
+    local step_description="$2"
+    
+    echo ""
+    log_info "=========================================="
+    log_info "Step: $step_name"
+    log_info "Description: $step_description"
+    log_info "=========================================="
+    
+    while true; do
+        read -p "Execute this step? [Y]es/[N]o/[Q]uit: " choice
+        case $choice in
+            [Yy]|[Yy][Ee][Ss]|"")
+                return 0  # Execute
+                ;;
+            [Nn]|[Nn][Oo])
+                log_info "Skipping: $step_name"
+                return 1  # Skip
+                ;;
+            [Qq]|[Qq][Uu][Ii][Tt])
+                log_info "Installation aborted by user."
+                exit 0
+                ;;
+            *)
+                echo "Please enter Y for Yes, N for No, or Q for Quit."
+                ;;
+        esac
+    done
+}
+
+execute_step() {
+    local step_name="$1"
+    local step_function="$2"
+    local step_description="$3"
+    
+    if prompt_user "$step_name" "$step_description"; then
+        log_info "Executing: $step_name"
+        
+        # Check if we need root privileges for this step
+        local needs_root=false
+        case "$step_function" in
+            prepare_system|setup_netmaker|install_docker|disable_systemd_resolved|configure_dnsmasq|reload_dns_services|configure_firewall|install_hashicorp_tools|setup_service_mesh|start_services)
+                needs_root=true
+                ;;
+        esac
+        
+        if [[ "$needs_root" == true && $EUID -ne 0 ]]; then
+            log_warn "This step requires root privileges. You may be prompted for sudo."
+        fi
+        
+        if $step_function; then
+            log_info "✓ Completed: $step_name"
+        else
+            log_error "✗ Failed: $step_name"
+            echo ""
+            log_error "Possible reasons for failure:"
+            log_error "  • Insufficient privileges (try running with sudo)"
+            log_error "  • Network connectivity issues"
+            log_error "  • Missing dependencies"
+            log_error "  • Configuration errors"
+            echo ""
+            read -p "Continue anyway? [y/N]: " choice
+            case $choice in
+                [Yy]|[Yy][Ee][Ss])
+                    log_info "Continuing despite failure..."
+                    ;;
+                *)
+                    log_error "Installation aborted due to step failure."
+                    exit 1
+                    ;;
+            esac
+        fi
+    fi
+}
+
+guided_installation() {
+    log_info "Starting Guided Installation Mode"
+    log_info "You will be prompted for each step. You can choose to execute, skip, or quit."
+    echo ""
+    
+    # Define installation steps with descriptions
+    execute_step "System Preparation" "prepare_system" \
+        "Update packages, create users, and prepare the system for installation"
+    
+    execute_step "Netmaker Setup" "setup_netmaker" \
+        "Install and configure Netmaker client for network connectivity"
+    
+    execute_step "Docker Installation" "install_docker" \
+        "Install Docker container runtime environment"
+    
+    execute_step "Disable systemd-resolved" "disable_systemd_resolved" \
+        "Disable systemd-resolved to prevent DNS conflicts"
+    
+    execute_step "Configure dnsmasq" "configure_dnsmasq" \
+        "Setup dnsmasq for local DNS resolution"
+    
+    execute_step "Reload DNS Services" "reload_dns_services" \
+        "Restart and reload DNS services to apply changes"
+    
+    execute_step "Configure Firewall" "configure_firewall" \
+        "Setup firewall rules for cluster communication"
+    
+    execute_step "Install HashiCorp Tools" "install_hashicorp_tools" \
+        "Install Nomad, Consul, and Vault binaries"
+    
+    execute_step "Setup Service Mesh" "setup_service_mesh" \
+        "Configure service mesh components and policies"
+    
+    execute_step "Start Services" "start_services" \
+        "Start all cluster services (Consul, Nomad, etc.)"
+    
+    # Final validation
+    echo ""
+    log_info "=========================================="
+    log_info "Installation Steps Complete"
+    log_info "=========================================="
+    log_info "Running final validation..."
+    
+    if validate_installation; then
+        return 0
+    else
+        log_warn "Some validation checks failed. The installation may be incomplete."
+        return 1
+    fi
+}
+
+# =============================================================================
 # MAIN EXECUTION
 # =============================================================================
 
@@ -268,29 +413,47 @@ main() {
         log_info "9. Start and validate services"
         log_info ""
         log_info "No actual changes would be made. Remove --dry-run to proceed."
+        log_info "Use --guided for step-by-step interactive installation."
         exit 0
     fi
     
     # Execute the main setup process
     log_info "Beginning cluster setup process..."
     
-    # Core system setup (from main.sh functionality)
-    prepare_system
-    setup_netmaker
-    install_docker
-    disable_systemd_resolved
-    configure_dnsmasq
-    reload_dns_services
-    configure_firewall
-    install_hashicorp_tools
+    if [[ "$GUIDED_MODE" == true ]]; then
+        # Run guided installation
+        if guided_installation; then
+            validation_passed=true
+        else
+            validation_passed=false
+        fi
+    else
+        # Run automated installation
+        # Core system setup (from main.sh functionality)
+        prepare_system
+        setup_netmaker
+        install_docker
+        disable_systemd_resolved
+        configure_dnsmasq
+        reload_dns_services
+        configure_firewall
+        install_hashicorp_tools
+        
+        # Service mesh setup (from setup_service_mesh.sh)
+        setup_service_mesh
+        
+        # Start services and validate
+        start_services
+        
+        if validate_installation; then
+            validation_passed=true
+        else
+            validation_passed=false
+        fi
+    fi
     
-    # Service mesh setup (from setup_service_mesh.sh)
-    setup_service_mesh
     
-    # Start services and validate
-    start_services
-    
-    if validate_installation; then
+    if [[ "$validation_passed" == true ]]; then
         local main_ip=$(ip route get 8.8.8.8 | grep -oP 'src \K\S+' | head -1)
         
         log_info "============================================"
