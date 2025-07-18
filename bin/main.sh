@@ -1,5 +1,16 @@
 #!/bin/bash
 set -euo pipefail
+IFS=$'\n\t'
+
+
+# If bundling, the bundler will inline the content here.
+# If not bundling, make sure lib/logging.sh exists.
+if [[ -z "${BUNDLED:-}" ]]; then
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+  source "$PROJECT_ROOT/lib/logging.sh"
+fi
+
 
 # Cluster Forge - Nomad/Consul/Netmaker Cluster Setup Script
 # Usage: 
