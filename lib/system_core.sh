@@ -351,33 +351,49 @@ configure_firewall() {
     log_info "Opening port $STATIC_PORT/udp for Netmaker WireGuard VPN (secure mesh networking)"
     ufw allow "$STATIC_PORT"/udp comment "Netmaker WireGuard"
     
-    # Nomad ports
-    log_info "Opening Nomad cluster ports:"
-    log_info "  • 4646/tcp - Nomad HTTP API (web UI and client communication)"
-    ufw allow 4646/tcp  # HTTP API
-    log_info "  • 4647/tcp - Nomad RPC (internal server communication)"
-    ufw allow 4647/tcp  # RPC
-    log_info "  • 4648/tcp - Nomad Serf WAN (cross-datacenter clustering)"
-    ufw allow 4648/tcp  # Serf WAN
+    # Get WireGuard network CIDR for security restrictions
+    local netmaker_interface=$(ip link show | grep -o -E "(nm-[^:]*|netmaker)" | head -1)
+    local wireguard_cidr=""
     
-    # Consul ports
-    log_info "Opening Consul cluster ports:"
+    if [[ -n "$netmaker_interface" ]]; then
+        # Extract network CIDR from WireGuard interface
+        wireguard_cidr=$(ip route show dev "$netmaker_interface" | grep -oP '\d+\.\d+\.\d+\.\d+/\d+' | head -1)
+        log_info "Detected WireGuard network: $wireguard_cidr"
+    fi
+    
+    if [[ -z "$wireguard_cidr" ]]; then
+        log_error "Could not detect WireGuard network CIDR. HashiCorp ports will be restricted to localhost only for security."
+        # wireguard_cidr="127.0.0.1"
+        return 1
+    fi
+
+    # Nomad ports - RESTRICTED to WireGuard network only
+    log_info "Opening Nomad cluster ports (restricted to WireGuard network):"
+    log_info "  • 4646/tcp - Nomad HTTP API (web UI and client communication)"
+    ufw allow from "$wireguard_cidr" to any port 4646 proto tcp comment "Nomad HTTP API"
+    log_info "  • 4647/tcp - Nomad RPC (internal server communication)"
+    ufw allow from "$wireguard_cidr" to any port 4647 proto tcp comment "Nomad RPC"
+    log_info "  • 4648/tcp - Nomad Serf WAN (cross-datacenter clustering)"
+    ufw allow from "$wireguard_cidr" to any port 4648 proto tcp comment "Nomad Serf WAN"
+    
+    # Consul ports - RESTRICTED to WireGuard network only
+    log_info "Opening Consul cluster ports (restricted to WireGuard network):"
     log_info "  • 8300/tcp - Consul Server RPC (server-to-server communication)"
-    ufw allow 8300/tcp  # Server RPC
+    ufw allow from "$wireguard_cidr" to any port 8300 proto tcp comment "Consul Server RPC"
     log_info "  • 8301/tcp - Consul Serf LAN TCP (local cluster membership)"
-    ufw allow 8301/tcp  # Serf LAN
+    ufw allow from "$wireguard_cidr" to any port 8301 proto tcp comment "Consul Serf LAN TCP"
     log_info "  • 8301/udp - Consul Serf LAN UDP (local cluster membership)"
-    ufw allow 8301/udp  # Serf LAN
+    ufw allow from "$wireguard_cidr" to any port 8301 proto udp comment "Consul Serf LAN UDP"
     log_info "  • 8302/tcp - Consul Serf WAN TCP (cross-datacenter communication)"
-    ufw allow 8302/tcp  # Serf WAN
+    ufw allow from "$wireguard_cidr" to any port 8302 proto tcp comment "Consul Serf WAN TCP"
     log_info "  • 8302/udp - Consul Serf WAN UDP (cross-datacenter communication)"
-    ufw allow 8302/udp  # Serf WAN
+    ufw allow from "$wireguard_cidr" to any port 8302 proto udp comment "Consul Serf WAN UDP"
     log_info "  • 8500/tcp - Consul HTTP API (web UI and service discovery)"
-    ufw allow 8500/tcp  # HTTP API
+    ufw allow from "$wireguard_cidr" to any port 8500 proto tcp comment "Consul HTTP API"
     log_info "  • 8600/tcp - Consul DNS TCP (service name resolution)"
-    ufw allow 8600/tcp  # DNS
+    ufw allow from "$wireguard_cidr" to any port 8600 proto tcp comment "Consul DNS TCP"
     log_info "  • 8600/udp - Consul DNS UDP (service name resolution)"
-    ufw allow 8600/udp  # DNS
+    ufw allow from "$wireguard_cidr" to any port 8600 proto udp comment "Consul DNS UDP"
     
     # DNS
     log_info "Opening DNS ports for dnsmasq service:"
@@ -391,12 +407,13 @@ configure_firewall() {
     ufw --force enable
     
     log_success "Firewall configuration completed successfully"
+    log_info "🔒 SECURITY: HashiCorp ports are RESTRICTED to WireGuard network only"
     log_info "Summary of opened ports:"
-    log_info "  SSH: 22/tcp"
-    log_info "  Netmaker VPN: $STATIC_PORT/udp"
-    log_info "  Nomad: 4646-4648/tcp"
-    log_info "  Consul: 8300-8302/tcp+udp, 8500/tcp, 8600/tcp+udp"
-    log_info "  DNS: 53/tcp+udp"
+    log_info "  SSH: 22/tcp (PUBLIC - for remote administration)"
+    log_info "  Netmaker VPN: $STATIC_PORT/udp (PUBLIC - for WireGuard connections)"
+    log_info "  Nomad: 4646-4648/tcp (RESTRICTED to $wireguard_cidr)"
+    log_info "  Consul: 8300-8302/tcp+udp, 8500/tcp, 8600/tcp+udp (RESTRICTED to $wireguard_cidr)"
+    log_info "  DNS: 53/tcp+udp (PUBLIC - for DNS resolution)"
 }
 
 # =============================================================================
