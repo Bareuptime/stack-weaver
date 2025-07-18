@@ -429,7 +429,7 @@ create_consul_config() {
 datacenter = "$DATACENTER"
 data_dir = "/opt/consul"
 log_level = "INFO"
-node_name = "$NODE_NAME"
+name = "$NODE_NAME"
 bind_addr = "$bind_ip"
 client_addr = "0.0.0.0"
 retry_join = ["$CONSUL_SERVER_IP"]
