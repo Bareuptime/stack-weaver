@@ -367,10 +367,11 @@ configure_firewall() {
         return 1
     fi
 
-    # Nomad ports - RESTRICTED to WireGuard network only
-    log_info "Opening Nomad cluster ports (restricted to WireGuard network):"
-    log_info "  • 4646/tcp - Nomad HTTP API (web UI and client communication)"
-    ufw allow from "$wireguard_cidr" to any port 4646 proto tcp comment "Nomad HTTP API"
+    # Nomad ports - RESTRICTED to WireGuard network + localhost for API access
+    log_info "Opening Nomad cluster ports (restricted to WireGuard network + localhost):"
+    log_info "  • 4646/tcp - Nomad HTTPS API (web UI and client communication)"
+    ufw allow from "$wireguard_cidr" to any port 4646 proto tcp comment "Nomad HTTPS API"
+    ufw allow from 127.0.0.1 to any port 4646 proto tcp comment "Nomad HTTPS API localhost"
     log_info "  • 4647/tcp - Nomad RPC (internal server communication)"
     ufw allow from "$wireguard_cidr" to any port 4647 proto tcp comment "Nomad RPC"
     log_info "  • 4648/tcp - Nomad Serf WAN (cross-datacenter clustering)"
@@ -411,7 +412,7 @@ configure_firewall() {
     log_info "Summary of opened ports:"
     log_info "  SSH: 22/tcp (PUBLIC - for remote administration)"
     log_info "  Netmaker VPN: $STATIC_PORT/udp (PUBLIC - for WireGuard connections)"
-    log_info "  Nomad: 4646-4648/tcp (RESTRICTED to $wireguard_cidr)"
+    log_info "  Nomad: 4646-4648/tcp (RESTRICTED to $wireguard_cidr + localhost for API)"
     log_info "  Consul: 8300-8302/tcp+udp, 8500/tcp, 8600/tcp+udp (RESTRICTED to $wireguard_cidr)"
     log_info "  DNS: 53/tcp+udp (PUBLIC - for DNS resolution)"
 }
@@ -649,12 +650,12 @@ start_services() {
         return 1
     fi
     
-    # Wait for Nomad to be ready
+    # Wait for Nomad to be ready (HTTPS only)
     log_info "Waiting for Nomad to be ready..."
     attempts=0
     while [[ $attempts -lt 30 ]]; do
-        if curl -s http://127.0.0.1:4646/v1/status/leader >/dev/null 2>&1; then
-            log_info "Nomad is ready"
+        if curl -sk https://127.0.0.1:4646/v1/status/leader >/dev/null 2>&1; then
+            log_info "Nomad is ready (HTTPS)"
             break
         fi
         sleep 2
@@ -701,10 +702,11 @@ validate_installation() {
         ((errors++))
     fi
     
-    if curl -s "http://127.0.0.1:4646/v1/status/leader" >/dev/null 2>&1; then
-        log_info "✓ Nomad API is responding"
+    # Check Nomad API (HTTPS only)
+    if curl -sk "https://127.0.0.1:4646/v1/status/leader" >/dev/null 2>&1; then
+        log_info "✓ Nomad API is responding (HTTPS)"
     else
-        log_error "✗ Nomad API is not responding"
+        log_error "✗ Nomad API is not responding (HTTPS)"
         ((errors++))
     fi
     
