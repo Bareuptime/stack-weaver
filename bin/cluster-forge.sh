@@ -295,9 +295,6 @@ main() {
     # Service mesh setup (from setup_service_mesh.sh)
     setup_service_mesh
     
-    # Client-specific configuration (from configure_client_service_mesh.sh)
-    configure_client_service_mesh
-    
     # Start services and validate
     start_services
     

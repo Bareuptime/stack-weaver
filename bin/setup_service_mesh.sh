@@ -554,7 +554,7 @@ check_service_status() {
     fi
 }
 
-main() {
+setup_service_mesh() {
     export NODE_IP=$NETMAKER_IP
     log "🚀 Starting Vault-based node bootstrap process..."
     log "Node IP: $NODE_IP"
@@ -602,6 +602,3 @@ main() {
     log "  • Check Nomad: sudo journalctl -u nomad -f"
     log "  • View certificates: ls -la /etc/consul.d/tls/"
 }
-
-# Run main function
-main "$@"
