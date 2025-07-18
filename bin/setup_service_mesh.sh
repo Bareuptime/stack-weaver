@@ -205,7 +205,8 @@ create_service_directories() {
     chown -R vault:vault /var/lib/vault-agent /var/log/vault-agent
     chown -R consul:consul /etc/consul.d /opt/consul
     chown -R nomad:nomad /etc/nomad.d /opt/nomad
-    chown -R vault:vault /etc/consul.d/tls
+    # TLS directory needs to be owned by consul so consul service can read the certificates
+    chown -R consul:consul /etc/consul.d/tls
     
     log_success "✅ Directories created"
 }
@@ -555,6 +556,14 @@ start_services() {
     for i in {1..60}; do
         if [ -f "/etc/consul.d/tls/consul.pem" ] && [ -f "/etc/consul.d/tls/consul-key.pem" ]; then
             log_info "✅ Certificates generated successfully"
+            # Fix ownership of certificate files for consul service
+            chown consul:consul /etc/consul.d/tls/consul.pem
+            chown consul:consul /etc/consul.d/tls/consul-key.pem
+            chown consul:consul /etc/consul.d/tls/ca.pem
+            chmod 644 /etc/consul.d/tls/consul.pem
+            chmod 600 /etc/consul.d/tls/consul-key.pem
+            chmod 644 /etc/consul.d/tls/ca.pem
+            log_info "✅ Certificate permissions fixed"
             break
         fi
         sleep 2
