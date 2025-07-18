@@ -300,7 +300,7 @@ create_certificate_templates() {
     
     # CA certificate template
     cat > /etc/vault-agent/templates/ca-cert.tpl << 'EOF'
-{{- with secret "pki-nodes/ca_chain" -}}
+{{- with secret "pki-nodes/cert/ca" -}}
 {{ .Data.certificate }}
 {{- end -}}
 EOF
