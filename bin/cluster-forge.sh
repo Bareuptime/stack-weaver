@@ -223,14 +223,6 @@ source_modules() {
             log_error "Required module not found: setup_service_mesh.sh"
             exit 1
         fi
-        
-        # Source client configuration functions
-        if [[ -f "$script_dir/configure_client_service_mesh.sh" ]]; then
-            source "$script_dir/configure_client_service_mesh.sh"
-        else
-            log_error "Required module not found: configure_client_service_mesh.sh"
-            exit 1
-        fi
     fi
 }
 

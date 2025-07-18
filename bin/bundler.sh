@@ -76,7 +76,6 @@ required_files=(
     "lib/logging.sh"
     "lib/system_core.sh"
     "bin/setup_service_mesh.sh"
-    "bin/configure_client_service_mesh.sh"
     "bin/cluster-forge.sh"
 )
 
@@ -157,24 +156,6 @@ sed -e '1,/^# ==================================================================
     -e '/^validate_input()/,/^}$/d' \
     -e '/^# Run main function$/,$d' \
     "$PROJECT_ROOT/bin/setup_service_mesh.sh" >> "$OUTPUT_FILE"
-
-# Add client configuration functions
-log_info "Bundling configure_client_service_mesh.sh..."
-cat >> "$OUTPUT_FILE" << 'EOF_CLIENT_COMMENT'
-
-# =============================================================================
-# CLIENT CONFIGURATION FUNCTIONS (from bin/configure_client_service_mesh.sh)
-# =============================================================================
-
-EOF_CLIENT_COMMENT
-
-# Extract function definitions from configure_client_service_mesh.sh (skip shebang, set commands, and initial comments)
-sed -e '1,/^# =============================================================================$/d' \
-    -e '/^ROLE=\|^NOMAD_SERVER_IP=\|^CONSUL_SERVER_IP=\|^NODE_NAME=\|^DATACENTER=\|^ENCRYPT_KEY=\|^NETMAKER_TOKEN=\|^STATIC_PORT=\|^VAULT_ADDR=\|^VAULT_TOKEN=/d' \
-    -e '/^error()/,/^}$/d' \
-    -e '/^validate_input()/,/^}$/d' \
-    -e '/^# Run main function$/,$d' \
-    "$PROJECT_ROOT/bin/configure_client_service_mesh.sh" >> "$OUTPUT_FILE"
 
 # Add main execution logic
 log_info "Bundling main execution logic from cluster-forge.sh..."
