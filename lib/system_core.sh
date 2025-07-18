@@ -33,7 +33,7 @@ prepare_system() {
     chown -R nomad:nomad /opt/nomad /etc/nomad.d /var/log/nomad
     chown -R consul:consul /opt/consul /etc/consul.d /var/log/consul
     
-    log_info "System preparation completed"
+    log_success "System preparation completed"
 }
 
 # =============================================================================
@@ -114,7 +114,7 @@ validate_netclient() {
     fi
     
     # If we get here, netclient is working properly
-    log_info "✓ Netclient is already installed and working"
+    log_success "✓ Netclient is already installed and working"
     log_info "  • Interface: $netmaker_interface"
     log_info "  • IP: $netmaker_ip"
     log_info "  • Port: $STATIC_PORT"
@@ -134,7 +134,7 @@ install_netclient() {
     chmod +x /tmp/netclient
     /tmp/netclient install
     
-    log_info "Netclient installed successfully"
+    log_success "Netclient installed successfully"
 }
 
 join_netmaker_network() {
@@ -143,7 +143,9 @@ join_netmaker_network() {
     # Get the main bridge IP (usually the default route interface)
     local endpoint_ip=$(ip route get 8.8.8.8 | grep -oP 'src \K\S+' | head -1)
     log_info "Detected endpoint IP: $endpoint_ip"
-    
+
+    export DNS_MODE="off"
+    log_info "Setting DNS mode to 'off' for Netmaker client"
     # Join the network with static port
     netclient join -t "$NETMAKER_TOKEN" \
         --static-port -p "$STATIC_PORT" \
@@ -174,7 +176,7 @@ join_netmaker_network() {
     # Export for use in other functions
     export NETMAKER_IP="$netmaker_ip"
     
-    log_info "Successfully joined Netmaker network with IP: $netmaker_ip"
+    log_success "Successfully joined Netmaker network with IP: $netmaker_ip"
 }
 
 setup_netmaker() {
@@ -212,7 +214,7 @@ disable_systemd_resolved() {
         log_info "systemd-resolved is not active"
     fi
     
-    log_info "DNS will be handled entirely by dnsmasq"
+    log_success "DNS will be handled entirely by dnsmasq"
 }
 
 configure_dnsmasq() {
@@ -306,12 +308,12 @@ reload_dns_services() {
     
     # Test DNS resolution
     if nslookup google.com 127.0.0.1 >/dev/null 2>&1; then
-        log_info "✓ DNS resolution test passed"
+        log_success "✓ DNS resolution test passed"
     else
         log_warn "⚠ Warning: DNS resolution test failed"
     fi
     
-    log_info "DNS services reloaded"
+    log_success "DNS services reloaded"
 }
 
 # =============================================================================
@@ -320,43 +322,81 @@ reload_dns_services() {
 
 configure_firewall() {
     log_info "Configuring firewall..."
+    log_info "Opening required ports for HashiCorp stack and network communication..."
+    
+    # Ensure UFW is installed
+    if ! command -v ufw &> /dev/null; then
+        log_info "UFW not found, installing it..."
+        apt-get update -y
+        apt-get install -y ufw
+        log_info "UFW installed successfully"
+    else
+        log_info "UFW is already available"
+    fi
     
     # Reset UFW
+    log_info "Resetting UFW to default state..."
     ufw --force reset
     
     # Default policies
+    log_info "Setting default policies: DENY incoming, ALLOW outgoing"
     ufw default deny incoming
     ufw default allow outgoing
     
     # SSH
+    log_info "Opening port 22/tcp for SSH access (remote administration)"
     ufw allow 22/tcp
     
     # Netmaker/WireGuard
+    log_info "Opening port $STATIC_PORT/udp for Netmaker WireGuard VPN (secure mesh networking)"
     ufw allow "$STATIC_PORT"/udp comment "Netmaker WireGuard"
     
-    # Nomad
+    # Nomad ports
+    log_info "Opening Nomad cluster ports:"
+    log_info "  • 4646/tcp - Nomad HTTP API (web UI and client communication)"
     ufw allow 4646/tcp  # HTTP API
+    log_info "  • 4647/tcp - Nomad RPC (internal server communication)"
     ufw allow 4647/tcp  # RPC
+    log_info "  • 4648/tcp - Nomad Serf WAN (cross-datacenter clustering)"
     ufw allow 4648/tcp  # Serf WAN
     
-    # Consul
+    # Consul ports
+    log_info "Opening Consul cluster ports:"
+    log_info "  • 8300/tcp - Consul Server RPC (server-to-server communication)"
     ufw allow 8300/tcp  # Server RPC
+    log_info "  • 8301/tcp - Consul Serf LAN TCP (local cluster membership)"
     ufw allow 8301/tcp  # Serf LAN
+    log_info "  • 8301/udp - Consul Serf LAN UDP (local cluster membership)"
     ufw allow 8301/udp  # Serf LAN
+    log_info "  • 8302/tcp - Consul Serf WAN TCP (cross-datacenter communication)"
     ufw allow 8302/tcp  # Serf WAN
+    log_info "  • 8302/udp - Consul Serf WAN UDP (cross-datacenter communication)"
     ufw allow 8302/udp  # Serf WAN
+    log_info "  • 8500/tcp - Consul HTTP API (web UI and service discovery)"
     ufw allow 8500/tcp  # HTTP API
+    log_info "  • 8600/tcp - Consul DNS TCP (service name resolution)"
     ufw allow 8600/tcp  # DNS
+    log_info "  • 8600/udp - Consul DNS UDP (service name resolution)"
     ufw allow 8600/udp  # DNS
     
     # DNS
+    log_info "Opening DNS ports for dnsmasq service:"
+    log_info "  • 53/tcp - DNS TCP queries (zone transfers and large responses)"
     ufw allow 53/tcp    # DNS TCP
+    log_info "  • 53/udp - DNS UDP queries (standard DNS resolution)"
     ufw allow 53/udp    # DNS UDP
     
     # Enable firewall
+    log_info "Enabling UFW firewall with configured rules..."
     ufw --force enable
     
-    log_info "Firewall configuration completed"
+    log_info "Firewall configuration completed successfully"
+    log_info "Summary of opened ports:"
+    log_info "  SSH: 22/tcp"
+    log_info "  Netmaker VPN: $STATIC_PORT/udp"
+    log_info "  Nomad: 4646-4648/tcp"
+    log_info "  Consul: 8300-8302/tcp+udp, 8500/tcp, 8600/tcp+udp"
+    log_info "  DNS: 53/tcp+udp"
 }
 
 # =============================================================================
