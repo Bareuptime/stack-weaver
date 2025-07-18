@@ -150,6 +150,14 @@ create_host_volumes() {
 create_vault_agent_config() {
     log "Creating Vault Agent configuration..."
     
+    # Create backup of existing config if it exists
+    if [ -f "/etc/vault-agent/vault-agent.hcl" ]; then
+        local backup_file="/etc/vault-agent/vault-agent.hcl.backup.$(date +%Y%m%d_%H%M%S)"
+        log "Backing up existing Vault Agent config to: $backup_file"
+        cp "/etc/vault-agent/vault-agent.hcl" "$backup_file"
+        log "✅ Backup created: $backup_file"
+    fi
+    
     cat > /etc/vault-agent/vault-agent.hcl << EOF
 pid_file = "/var/lib/vault-agent/vault-agent.pid"
 
@@ -271,6 +279,14 @@ create_consul_config() {
     log "Creating Consul configuration..."
     local bind_ip="${NETMAKER_IP}"
     
+    # Create backup of existing config if it exists
+    if [ -f "/etc/consul.d/consul.hcl" ]; then
+        local backup_file="/etc/consul.d/consul.hcl.backup.$(date +%Y%m%d_%H%M%S)"
+        log "Backing up existing Consul config to: $backup_file"
+        cp "/etc/consul.d/consul.hcl" "$backup_file"
+        log "✅ Backup created: $backup_file"
+    fi
+    
     cat > /etc/consul.d/consul.hcl << EOF
 datacenter = "$DATACENTER"
 data_dir = "/opt/consul"
@@ -330,6 +346,14 @@ EOF
 create_nomad_config() {
     log "Creating Nomad configuration..."
     local bind_ip="${NETMAKER_IP}"
+    
+    # Create backup of existing config if it exists
+    if [ -f "/etc/nomad.d/nomad.hcl" ]; then
+        local backup_file="/etc/nomad.d/nomad.hcl.backup.$(date +%Y%m%d_%H%M%S)"
+        log "Backing up existing Nomad config to: $backup_file"
+        cp "/etc/nomad.d/nomad.hcl" "$backup_file"
+        log "✅ Backup created: $backup_file"
+    fi
     
     cat > /etc/nomad.d/nomad.hcl << EOF
 datacenter = "dc1"
