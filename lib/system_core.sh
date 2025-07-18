@@ -320,7 +320,7 @@ reload_dns_services() {
 # FIREWALL CONFIGURATION
 # =============================================================================
 
-install_hashicorp_tools() {
+configure_firewall() {
     log_info "Configuring firewall..."
     log_info "Opening required ports for HashiCorp stack and network communication..."
     

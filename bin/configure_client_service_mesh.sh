@@ -400,6 +400,7 @@ check_service_status() {
 }
 
 main() {
+    export NODE_IP=$NETMAKER_IP
     log "🚀 Starting Vault-based node bootstrap process..."
     log "Node IP: $NODE_IP"
     log "Vault Address: $VAULT_ADDR"

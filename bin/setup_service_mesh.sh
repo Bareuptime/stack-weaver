@@ -120,7 +120,7 @@ create_service_directories() {
     chown -R nomad:nomad /etc/nomad.d /opt/nomad
     chown -R vault:vault /etc/consul.d/tls
     
-    log "✅ Directories created"
+    log_success "✅ Directories created"
 }
 
 # =============================================================================
@@ -149,7 +149,7 @@ create_host_volumes() {
     
     chown -R nomad:nomad /opt/nomad
     
-    log "Host volumes created"
+    log_success "Host volumes created"
 }
 
 create_vault_agent_config() {
@@ -231,7 +231,7 @@ EOF
 {{- end -}}
 EOF
     
-    log "✅ Certificate templates created"
+    log_success "✅ Certificate templates created"
 }
 
 create_vault_token_file() {
@@ -240,8 +240,8 @@ create_vault_token_file() {
     echo "$VAULT_TOKEN" > /etc/vault-agent/token
     chown vault:vault /etc/vault-agent/token
     chmod 600 /etc/vault-agent/token
-    
-    log "✅ Vault token file created"
+
+    log_success "✅ Vault token file created"
 }
 
 create_vault_agent_service() {
@@ -441,13 +441,13 @@ start_services() {
     
     # Wait for certificates to be generated
     log "Waiting for certificates to be generated..."
-    for i in {1..30}; do
+    for i in {1..60}; do
         if [ -f "/etc/consul.d/tls/consul.pem" ] && [ -f "/etc/consul.d/tls/consul-key.pem" ]; then
             log "✅ Certificates generated successfully"
             break
         fi
         sleep 2
-        if [ $i -eq 30 ]; then
+        if [ $i -eq 60 ]; then
             log "⚠️  Timeout waiting for certificates"
         fi
     done
@@ -494,6 +494,7 @@ check_service_status() {
 }
 
 main() {
+    export NODE_IP=$NETMAKER_IP
     log "🚀 Starting Vault-based node bootstrap process..."
     log "Node IP: $NODE_IP"
     log "Vault Address: $VAULT_ADDR"
