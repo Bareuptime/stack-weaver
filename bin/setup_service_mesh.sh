@@ -366,7 +366,7 @@ EOF
 {{- with secret "pki-nodes/issue/node-cert" 
     "common_name=nomad-consul-vault-cluster"
     "ip_sans=$NODE_IP,127.0.0.1"
-    "alt_names=localhost,nomad,consul,vault,server.global.nomad,client.global.nomad,nomad.service.consul,consul.service.consul,vault.service.consul,*.nomad.service.consul,*.consul.service.consul,*.vault.service.consul"
+    "alt_names=localhost,nomad,consul,vault,server.global.nomad,client.global.nomad,*.global.nomad,nomad.service.consul,consul.service.consul,vault.service.consul,*.nomad.service.consul,*.consul.service.consul,*.vault.service.consul"
     "ttl=12h" -}}
 {{ .Data.certificate }}
 {{- end -}}
@@ -377,7 +377,7 @@ EOF
 {{- with secret "pki-nodes/issue/node-cert" 
     "common_name=nomad-consul-vault-cluster"
     "ip_sans=$NODE_IP,127.0.0.1"
-    "alt_names=localhost,nomad,consul,vault,server.global.nomad,client.global.nomad,nomad.service.consul,consul.service.consul,vault.service.consul,*.nomad.service.consul,*.consul.service.consul,*.vault.service.consul"
+    "alt_names=localhost,nomad,consul,vault,server.global.nomad,client.global.nomad,*.global.nomad,nomad.service.consul,consul.service.consul,vault.service.consul,*.nomad.service.consul,*.consul.service.consul,*.vault.service.consul"
     "ttl=12h" -}}
 {{ .Data.private_key }}
 {{- end -}}
@@ -589,7 +589,12 @@ client {
 }
 
 consul {
-  address = "127.0.0.1:8500"
+  address = "https://127.0.0.1:8501"
+  ssl = true
+  verify_ssl = false
+  ca_file = "/etc/consul.d/tls/ca.pem"
+  cert_file = "/etc/consul.d/tls/consul.pem"
+  key_file = "/etc/consul.d/tls/consul-key.pem"
 }
 
 tls {
