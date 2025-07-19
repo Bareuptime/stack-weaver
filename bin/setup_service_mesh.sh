@@ -361,23 +361,23 @@ EOF
 {{- end -}}
 EOF
 
-    # Nomad certificate template  
+    # FIXED: Nomad certificate template - Added server.global.nomad and client.global.nomad
     cat > /etc/vault-agent/templates/nomad-cert.tpl << EOF
 {{- with secret "pki-nodes/issue/node-cert" 
-    "common_name=nomad-consul-vault-cluster"
+    "common_name=nomad.service.consul"
     "ip_sans=$NODE_IP,127.0.0.1"
-    "alt_names=localhost,nomad,consul,vault,nomad.service.consul,consul.service.consul,vault.service.consul,*.nomad.service.consul,*.consul.service.consul,*.vault.service.consul"
+    "alt_names=localhost,nomad,consul,vault,server.global.nomad,client.global.nomad,nomad.service.consul,consul.service.consul,vault.service.consul,*.nomad.service.consul,*.consul.service.consul,*.vault.service.consul"
     "ttl=12h" -}}
 {{ .Data.certificate }}
 {{- end -}}
 EOF
 
-    # Nomad private key template
+    # FIXED: Nomad private key template - Added server.global.nomad and client.global.nomad
     cat > /etc/vault-agent/templates/nomad-key.tpl << EOF
 {{- with secret "pki-nodes/issue/node-cert" 
-    "common_name=nomad-consul-vault-cluster"
+    "common_name=nomad.service.consul"
     "ip_sans=$NODE_IP,127.0.0.1"
-    "alt_names=localhost,nomad,consul,vault,nomad.service.consul,consul.service.consul,vault.service.consul,*.nomad.service.consul,*.consul.service.consul,*.vault.service.consul"
+    "alt_names=localhost,nomad,consul,vault,server.global.nomad,client.global.nomad,nomad.service.consul,consul.service.consul,vault.service.consul,*.nomad.service.consul,*.consul.service.consul,*.vault.service.consul"
     "ttl=12h" -}}
 {{ .Data.private_key }}
 {{- end -}}
@@ -505,7 +505,7 @@ log_level = "INFO"
 node_name = "$NODE_NAME"
 bind_addr = "$bind_ip"
 client_addr = "0.0.0.0"
-retry_join = ["$CONSUL_SERVER_IP"]
+retry_join = ["consul.service.consul"]
 server = false
 
 advertise_addr = "$bind_ip"
@@ -600,6 +600,8 @@ tls {
   key_file = "/etc/nomad.d/tls/nomad-key.pem"
   verify_server_hostname = false
   verify_https_client = false
+  rpc_upgrade_mode = false           # ADDED: Prevents RPC upgrade issues
+  verify_incoming = false            # ADDED: Relaxed for client connections
 }
 
 acl {
