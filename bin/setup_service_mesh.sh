@@ -344,7 +344,7 @@ EOF
 {{- with secret "pki-nodes/issue/node-cert" 
     "common_name=nomad-consul-vault-cluster"
     "ip_sans=$NODE_IP,127.0.0.1"
-    "alt_names=localhost,consul"
+    "alt_names=localhost,consul,nomad,vault,nomad.service.consul,consul.service.consul,vault.service.consul,*.nomad.service.consul,*.consul.service.consul,*.vault.service.consul"
     "ttl=12h" -}}
 {{ .Data.certificate }}
 {{- end -}}
@@ -355,7 +355,7 @@ EOF
 {{- with secret "pki-nodes/issue/node-cert" 
     "common_name=nomad-consul-vault-cluster"
     "ip_sans=$NODE_IP,127.0.0.1"
-    "alt_names=localhost,consul"
+    "alt_names=localhost,consul,nomad,vault,nomad.service.consul,consul.service.consul,vault.service.consul,*.nomad.service.consul,*.consul.service.consul,*.vault.service.consul"
     "ttl=12h" -}}
 {{ .Data.private_key }}
 {{- end -}}
