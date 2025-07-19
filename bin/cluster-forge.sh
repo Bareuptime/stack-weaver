@@ -17,13 +17,46 @@ if [[ -z "${BUNDLED:-}" ]]; then
 fi
 
 # =============================================================================
+# HOSTNAME GENERATION FUNCTION
+# =============================================================================
+
+generate_or_get_node_name() {
+    local hostname_file="$HOME/.cluster-forge-hostname"
+    
+    # Check if hostname file already exists
+    if [[ -f "$hostname_file" ]]; then
+        local stored_hostname
+        stored_hostname=$(cat "$hostname_file" 2>/dev/null || echo "")
+        
+        # Validate stored hostname (should contain original hostname + 3 digits)
+        if [[ -n "$stored_hostname" && "$stored_hostname" =~ ^.+[0-9]{3}$ ]]; then
+            echo "$stored_hostname"
+            return 0
+        fi
+    fi
+    
+    # Generate new hostname with 3 random digits
+    local base_hostname
+    base_hostname=$(hostname)
+    local random_suffix
+    random_suffix=$(printf "%04d" $((RANDOM % 10000)))
+    local new_hostname="${base_hostname}-${random_suffix}"
+    
+    # Store the hostname for future use
+    echo "$new_hostname" > "$hostname_file"
+    chmod 600 "$hostname_file"  # Secure the file
+    
+    echo "$new_hostname"
+}
+
+# =============================================================================
 # CONFIGURATION VARIABLES
 # =============================================================================
 
 ROLE="${ROLE:-client}"                    # server or client
 NOMAD_SERVER_IP="${NOMAD_SERVER_IP:-}"    # IP of the server node
 CONSUL_SERVER_IP="${CONSUL_SERVER_IP:-}"  # IP of the server node
-NODE_NAME="${NODE_NAME:-$(hostname)}"     # Node name
+NODE_NAME="${NODE_NAME:-$(generate_or_get_node_name)}"  # Node name with persistent random suffix
 DATACENTER="${DATACENTER:-dc1}"           # Datacenter name
 ENCRYPT_KEY="${ENCRYPT_KEY:-}"            # Consul encryption key (auto-generated if empty)
 NETMAKER_TOKEN="${NETMAKER_TOKEN:-}"      # Netmaker enrollment token (mandatory)
