@@ -342,7 +342,7 @@ EOF
     # Consul certificate template  
     cat > /etc/vault-agent/templates/consul-cert.tpl << EOF
 {{- with secret "pki-nodes/issue/node-cert" 
-    "common_name=consul.service.consul"
+    "common_name=nomad-consul-vault-cluster"
     "ip_sans=$NODE_IP,127.0.0.1"
     "alt_names=localhost,consul"
     "ttl=12h" -}}
@@ -353,7 +353,7 @@ EOF
     # Private key template
     cat > /etc/vault-agent/templates/consul-key.tpl << EOF
 {{- with secret "pki-nodes/issue/node-cert" 
-    "common_name=consul.service.consul"
+    "common_name=nomad-consul-vault-cluster"
     "ip_sans=$NODE_IP,127.0.0.1"
     "alt_names=localhost,consul"
     "ttl=12h" -}}
@@ -364,7 +364,7 @@ EOF
     # FIXED: Nomad certificate template - Added server.global.nomad and client.global.nomad
     cat > /etc/vault-agent/templates/nomad-cert.tpl << EOF
 {{- with secret "pki-nodes/issue/node-cert" 
-    "common_name=nomad.service.consul"
+    "common_name=nomad-consul-vault-cluster"
     "ip_sans=$NODE_IP,127.0.0.1"
     "alt_names=localhost,nomad,consul,vault,server.global.nomad,client.global.nomad,nomad.service.consul,consul.service.consul,vault.service.consul,*.nomad.service.consul,*.consul.service.consul,*.vault.service.consul"
     "ttl=12h" -}}
@@ -375,7 +375,7 @@ EOF
     # FIXED: Nomad private key template - Added server.global.nomad and client.global.nomad
     cat > /etc/vault-agent/templates/nomad-key.tpl << EOF
 {{- with secret "pki-nodes/issue/node-cert" 
-    "common_name=nomad.service.consul"
+    "common_name=nomad-consul-vault-cluster"
     "ip_sans=$NODE_IP,127.0.0.1"
     "alt_names=localhost,nomad,consul,vault,server.global.nomad,client.global.nomad,nomad.service.consul,consul.service.consul,vault.service.consul,*.nomad.service.consul,*.consul.service.consul,*.vault.service.consul"
     "ttl=12h" -}}

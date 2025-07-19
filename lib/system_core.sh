@@ -734,3 +734,31 @@ validate_installation() {
         return 1
     fi
 }
+
+
+diagnose_system() {
+    echo "=== Consul Client Diagnostic ==="
+
+    echo "1. Consul service status:"
+    sudo systemctl status consul --no-pager
+
+    echo -e "\n2. Consul configuration:"
+    sudo cat /etc/consul.d/consul.hcl | grep -E "(retry_join|server|datacenter)"
+
+    echo -e "\n3. Network connectivity to server:"
+    ping -c 3 10.10.85.1
+
+    echo -e "\n4. Consul server HTTP test:"
+    curl -m 5 -k http://10.10.85.1:8500/v1/status/leader 2>/dev/null || echo "Connection failed"
+
+    echo -e "\n5. Consul member status:"
+    consul members 2>/dev/null || echo "Not connected to cluster"
+
+    echo -e "\n6. Recent Consul logs:"
+    sudo journalctl -u consul -n 10 --no-pager
+
+    echo -e "\n7. DNS test to server IP:"
+    dig @127.0.0.1 -p 8600 10.10.85.1
+
+    echo "=== Diagnostic Complete ==="
+}
