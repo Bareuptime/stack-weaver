@@ -159,7 +159,7 @@ join_netmaker_network() {
     
     while [[ $attempts -lt 30 ]]; do
         # Look for netmaker interface (usually starts with nm-)
-        netmaker_ip=$(ip addr show | grep -A 1 "nm-" | grep -oP 'inet \K[0-9.]+' | head -1 || echo "")
+        netmaker_ip=$(ip addr show | grep -A 1 "netmaker" | grep -oP 'inet \K[0-9.]+' | head -1 || echo "")
         if [[ -n "$netmaker_ip" ]]; then
             log_info "Netmaker interface ready with IP: $netmaker_ip"
             break
