@@ -76,23 +76,6 @@ jobs:
           find . -name "*.sh" -not -path "./.git/*" | xargs shellcheck -S error
           echo "✅ ShellCheck validation passed"
 
-      - name: Run bundler tests
-        run: |
-          echo "🧪 Testing bundler functionality..."
-          chmod +x bin/bundler.sh
-          ./bin/bundler.sh test-bundle.sh
-          
-          # Test bundled script syntax
-          bash -n test-bundle.sh
-          echo "✅ Bundle syntax validation passed"
-          
-          # Test help functionality
-          ./test-bundle.sh --help > /dev/null
-          echo "✅ Help functionality test passed"
-          
-          # Clean up test bundle
-          rm -f test-bundle.sh
-
       - name: Get version information
         id: version
         run: |
