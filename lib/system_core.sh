@@ -485,11 +485,12 @@ EOF
 # =============================================================================
 
 validate_hashicorp_tools() {
-    log_info "Validating existing Nomad, Consul, and Vault installations..."
+    log_info "Validating existing Nomad, Consul, Vault, and Terraform installations..."
     
     local nomad_installed=false
     local consul_installed=false
     local vault_installed=false
+    local terraform_installed=false
     
     # Check if Nomad is installed and functional
     if command -v nomad &> /dev/null; then
@@ -530,10 +531,23 @@ validate_hashicorp_tools() {
         log_info "Vault not found in PATH"
     fi
     
+    # Check if Terraform is installed and functional
+    if command -v terraform &> /dev/null; then
+        if terraform version &> /dev/null; then
+            local terraform_ver=$(terraform version | head -1)
+            log_info "✓ Terraform is already installed: $terraform_ver"
+            terraform_installed=true
+        else
+            log_info "Terraform binary found but not functional"
+        fi
+    else
+        log_info "Terraform not found in PATH"
+    fi
+    
     # Return status: 0 if all installed, 1 if none, 2 if partial
-    if [[ "$nomad_installed" == true && "$consul_installed" == true && "$vault_installed" == true ]]; then
+    if [[ "$nomad_installed" == true && "$consul_installed" == true && "$vault_installed" == true && "$terraform_installed" == true ]]; then
         return 0  # All installed
-    elif [[ "$nomad_installed" == false && "$consul_installed" == false && "$vault_installed" == false ]]; then
+    elif [[ "$nomad_installed" == false && "$consul_installed" == false && "$vault_installed" == false && "$terraform_installed" == false ]]; then
         return 1  # None installed
     else
         return 2  # Partial installation
@@ -556,31 +570,95 @@ install_hashicorp_tools() {
         log_info "HashiCorp tools not found - proceeding with installation"
     fi
     
-    log_info "Installing Nomad, Consul, and Vault..."
+    log_info "Installing Nomad, Consul, Vault, and Terraform..."
     
     # Check if HashiCorp repository is already configured
     if [[ ! -f /etc/apt/sources.list.d/hashicorp.list ]]; then
         log_info "Adding HashiCorp repository..."
-        # Add HashiCorp's official GPG key and repository
-        wget -q -O - https://apt.releases.hashicorp.com/gpg | gpg --dearmor --batch --yes -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
-        echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(. /etc/os-release && echo $VERSION_CODENAME) main" | tee /etc/apt/sources.list.d/hashicorp.list
+        
+        # Ensure required packages are installed
+        apt-get update -y
+        apt-get install -y gpg wget lsb-release
+        
+        # Clean up any existing incomplete keys
+        rm -f /usr/share/keyrings/hashicorp-archive-keyring.gpg
+        
+        # Create keyrings directory if it doesn't exist
+        mkdir -p /usr/share/keyrings
+        
+        # Download and add HashiCorp's official GPG key using the official method
+        log_info "Downloading HashiCorp GPG key using official method..."
+        if ! wget -O- https://apt.releases.hashicorp.com/gpg | gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg; then
+            log_error "Failed to download and import HashiCorp GPG key"
+            return 1
+        fi
+        
+        # Verify the key's fingerprint (optional but recommended)
+        local key_fingerprint=$(gpg --no-default-keyring --keyring /usr/share/keyrings/hashicorp-archive-keyring.gpg --fingerprint 2>/dev/null | grep -o "798A EC65 4E5C 1542 8C8E 42EE AA16 FCBC A621 E701" || echo "")
+        if [[ -n "$key_fingerprint" ]]; then
+            log_info "✓ HashiCorp GPG key fingerprint verified: $key_fingerprint"
+        else
+            log_warn "⚠ Warning: Could not verify GPG key fingerprint, but proceeding..."
+        fi
+        
+        # Detect OS and appropriate codename for repository configuration
+        . /etc/os-release
+        local os_id="$ID"
+        local codename=""
+        
+        if [[ "$os_id" == "ubuntu" ]]; then
+            # For Ubuntu, use UBUNTU_CODENAME if available, fallback to VERSION_CODENAME
+            codename="${UBUNTU_CODENAME:-$VERSION_CODENAME}"
+            log_info "Detected Ubuntu, using codename: $codename"
+        elif [[ "$os_id" == "debian" ]]; then
+            # For Debian, use lsb_release or VERSION_CODENAME
+            if command -v lsb_release &> /dev/null; then
+                codename=$(lsb_release -cs)
+            else
+                codename="$VERSION_CODENAME"
+            fi
+            log_info "Detected Debian, using codename: $codename"
+        else
+            # Fallback for other distributions
+            if command -v lsb_release &> /dev/null; then
+                codename=$(lsb_release -cs)
+            else
+                codename="$VERSION_CODENAME"
+            fi
+            log_info "Detected $os_id, using codename: $codename"
+        fi
+        
+        if [[ -z "$codename" ]]; then
+            log_error "Could not determine OS codename for repository configuration"
+            return 1
+        fi
+        
+        # Add repository using the official format
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $codename main" | tee /etc/apt/sources.list.d/hashicorp.list
+        
+        log_info "HashiCorp repository added successfully for $os_id $codename"
     else
         log_info "HashiCorp repository already configured"
     fi
     
-    # Update and install
+    # Update and install (including Terraform)
+    log_info "Updating package lists..."
     apt-get update -y
-    apt-get install -y nomad consul vault
+    
+    log_info "Installing HashiCorp tools: Nomad, Consul, Vault, and Terraform..."
+    apt-get install -y nomad consul vault terraform
     
     # Verify installations
-    if nomad version &> /dev/null && consul version &> /dev/null && vault version &> /dev/null; then
+    if nomad version &> /dev/null && consul version &> /dev/null && vault version &> /dev/null && terraform version &> /dev/null; then
         local nomad_ver=$(nomad version | head -1)
         local consul_ver=$(consul version | head -1)
         local vault_ver=$(vault version | head -1)
+        local terraform_ver=$(terraform version | head -1)
         log_success "✓ Installation successful:"
         log_info "  • $nomad_ver"
         log_info "  • $consul_ver"
         log_info "  • $vault_ver"
+        log_info "  • $terraform_ver"
     else
         log_error "Installation verification failed - one or more tools are not working"
         return 1
