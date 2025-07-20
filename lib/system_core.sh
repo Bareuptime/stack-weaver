@@ -278,7 +278,11 @@ EOF
     log_info "Created /etc/dnsmasq.d/10-consul with:"
     log_info "  • Consul DNS: ${CONSUL_SERVER_IP}:8600"
     log_info "  • Listen addresses: 127.0.0.1, ${docker_ip}, ${netmaker_ip}"
-    
+
+    log_info "Disabling systemd-resolved to avoid conflicts..."
+    disable_systemd_resolved
+    log_success "systemd-resolved disabled"
+
     # Start and enable dnsmasq
     systemctl enable dnsmasq
     systemctl start dnsmasq

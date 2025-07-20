@@ -371,7 +371,7 @@ execute_step() {
         # Check if we need root privileges for this step
         local needs_root=false
         case "$step_function" in
-            prepare_system|setup_netmaker|install_docker|disable_systemd_resolved|configure_dnsmasq|reload_dns_services|configure_firewall|install_hashicorp_tools|install_cni|setup_service_mesh|start_services)
+            prepare_system|setup_netmaker|install_docker|configure_dnsmasq|reload_dns_services|configure_firewall|install_hashicorp_tools|install_cni|setup_service_mesh|start_services)
                 needs_root=true
                 ;;
         esac
@@ -429,9 +429,6 @@ guided_installation() {
     
     execute_step "Docker Installation" "install_docker" \
         "Install Docker container runtime environment"
-    
-    execute_step "Disable systemd-resolved" "disable_systemd_resolved" \
-        "Disable systemd-resolved to prevent DNS conflicts"
     
     execute_step "Configure dnsmasq" "configure_dnsmasq" \
         "Setup dnsmasq for local DNS resolution"
@@ -531,7 +528,6 @@ main() {
         prepare_system
         setup_netmaker
         install_docker
-        disable_systemd_resolved
         configure_dnsmasq
         reload_dns_services
         configure_firewall
