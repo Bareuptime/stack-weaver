@@ -104,7 +104,7 @@ jobs:
           
           # Create the bundle
           chmod +x bin/bundler.sh
-          ./bin/bundler.sh "${BUNDLE_NAME}"
+          ./bin/bundler.sh --output "${BUNDLE_NAME}"
           
           # Add metadata to the bundle
           cat >> "${BUNDLE_NAME}" << 'EOF_METADATA'
