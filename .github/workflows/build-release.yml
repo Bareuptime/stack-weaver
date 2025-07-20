@@ -260,13 +260,28 @@ jobs:
 
       - name: Test bundle in container
         run: |
+          # Debug: List all downloaded files
+          echo "📋 Downloaded files:"
+          find . -name "*cluster-forge*" -type f
+          ls -la
+          
           # Find the appropriate bundle for this test
-          BUNDLE=$(find . -name "cluster-forge-*linux-amd64*" -type f -executable | head -1)
+          BUNDLE=$(find . -name "cluster-forge-*linux-amd64*" -type f | head -1)
+          
+          # If no specific match, try any cluster-forge binary
+          if [[ -z "$BUNDLE" ]]; then
+            BUNDLE=$(find . -name "cluster-forge-*" -type f | grep -v "\.sha256" | head -1)
+          fi
           
           if [[ -z "$BUNDLE" ]]; then
             echo "❌ No bundle found for testing"
+            echo "Available files:"
+            find . -type f
             exit 1
           fi
+          
+          # Make sure the bundle is executable
+          chmod +x "$BUNDLE"
           
           echo "🧪 Testing bundle: $BUNDLE"
           echo "🐳 Testing in container: ${{ matrix.os-image }}"
