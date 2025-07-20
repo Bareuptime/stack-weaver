@@ -156,30 +156,41 @@ join_netmaker_network() {
     log_info "Waiting for Netmaker interface to be ready..."
     local attempts=0
     local netmaker_ip=""
-    log_info "Waiting for Netmaker interface to be ready...1"
+    local netmaker_interface=""
     
     while [[ $attempts -lt 30 ]]; do
-        # Look for netmaker interface (usually starts with nm-)
-        log_info "Waiting for Netmaker interface to be ready...3"
-        netmaker_ip=$(ip addr show | grep -A 1 "netmaker" | grep -oP 'inet \K[0-9.]+' | head -1 || echo "")
-        log_info "Waiting for Netmaker interface to be ready...4"
-        if [[ -n "$netmaker_ip" ]]; then
-            log_info "Waiting for Netmaker interface to be ready...5"
-            log_info "Netmaker interface ready with IP: $netmaker_ip"
-            break
+        log_info "Waiting for Netmaker interface... attempt $((attempts + 1))/30"
+        
+        # First, find the netmaker interface (usually starts with nm-)
+        netmaker_interface=$(ip link show 2>/dev/null | grep -oE "(nm-[^:]*|netmaker[^:]*)" | head -1 || echo "")
+        
+        if [[ -n "$netmaker_interface" ]]; then
+            log_info "Found Netmaker interface: $netmaker_interface"
+            # Now get the IP from that specific interface
+            netmaker_ip=$(ip addr show "$netmaker_interface" 2>/dev/null | grep -oP 'inet \K[0-9.]+' | head -1 || echo "")
+            
+            if [[ -n "$netmaker_ip" ]]; then
+                log_info "Netmaker interface ready with IP: $netmaker_ip"
+                break
+            else
+                log_info "Interface $netmaker_interface found but no IP assigned yet"
+            fi
+        else
+            log_info "No Netmaker interface found yet (looking for nm-* or netmaker*)"
         fi
-        log_info "Waiting for Netmaker interface to be ready...6"
+        
         sleep 2
         ((attempts++))
     done
-    log_info "Waiting for Netmaker interface to be ready...7"
     
     if [[ -z "$netmaker_ip" ]]; then
-        log_info "Waiting for Netmaker interface to be ready...8"
         log_error "Failed to detect Netmaker interface IP after 60 seconds"
+        log_info "Available network interfaces:"
+        ip link show | grep -E "^[0-9]+:" | awk '{print "  " $2}' | sed 's/:$//'
+        log_info "Checking for any WireGuard interfaces:"
+        ip link show type wireguard 2>/dev/null || log_info "  No WireGuard interfaces found"
         return 1
     fi
-    log_info "Waiting for Netmaker interface to be ready...9"
     
     # Export for use in other functions
     export NETMAKER_IP="$netmaker_ip"
