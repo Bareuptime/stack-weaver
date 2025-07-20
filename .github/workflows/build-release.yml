@@ -21,11 +21,6 @@ on:
         required: false
         default: false
         type: boolean
-  push:
-    tags:
-      - 'v*'
-  release:
-    types: [published]
 
 env:
   MAINTAINER_NAME: ${{ github.event.inputs.maintainer_name || 'Bareuptime' }}
