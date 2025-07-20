@@ -589,6 +589,98 @@ install_hashicorp_tools() {
     log_success "HashiCorp tools installation completed"
 }
 
+install_cni() {
+    log_info "Installing CNI plugins for Nomad..."
+    
+    # Check if CNI is already installed
+    if [[ -d "/opt/cni/bin" ]] && [[ -n "$(ls -A /opt/cni/bin 2>/dev/null)" ]]; then
+        log_info "CNI plugins already installed, checking version..."
+        if [[ -x "/opt/cni/bin/bridge" ]]; then
+            local existing_version=$(/opt/cni/bin/bridge 2>&1 | grep -o 'v[0-9]\+\.[0-9]\+\.[0-9]\+' | head -1 || echo "unknown")
+            log_info "Existing CNI version: ${existing_version:-unknown}"
+            log_success "CNI plugins already installed and functional"
+            return 0
+        fi
+    fi
+    
+    # Detect system architecture
+    local arch=$(dpkg --print-architecture 2>/dev/null || uname -m)
+    local cni_arch=""
+    
+    case "$arch" in
+        amd64|x86_64)
+            cni_arch="amd64"
+            ;;
+        arm64|aarch64)
+            cni_arch="arm64"
+            ;;
+        armhf|armv7l)
+            cni_arch="arm"
+            ;;
+        *)
+            log_error "Unsupported architecture: $arch"
+            return 1
+            ;;
+    esac
+    
+    log_info "Detected architecture: $arch -> CNI architecture: $cni_arch"
+    
+    # CNI version and download URL
+    local cni_version="v1.7.1"
+    local cni_url="https://github.com/containernetworking/plugins/releases/download/${cni_version}/cni-plugins-linux-${cni_arch}-${cni_version}.tgz"
+    
+    log_info "Downloading CNI plugins from: $cni_url"
+    
+    # Create CNI directory structure
+    mkdir -p /opt/cni/bin
+    
+    # Download and install CNI plugins with error handling
+    local temp_file="/tmp/cni-plugins.tgz"
+    
+    if ! wget -q -O "$temp_file" "$cni_url"; then
+        log_error "Failed to download CNI plugins from $cni_url"
+        rm -f "$temp_file"
+        return 1
+    fi
+    
+    # Verify download
+    if [[ ! -f "$temp_file" ]] || [[ ! -s "$temp_file" ]]; then
+        log_error "Downloaded CNI plugins file is empty or missing"
+        rm -f "$temp_file"
+        return 1
+    fi
+    
+    # Extract plugins
+    if ! tar xzf "$temp_file" -C /opt/cni/bin; then
+        log_error "Failed to extract CNI plugins"
+        rm -f "$temp_file"
+        return 1
+    fi
+    
+    # Clean up temporary file
+    rm -f "$temp_file"
+    
+    # Set proper permissions
+    chmod +x /opt/cni/bin/*
+    
+    # Verify installation
+    local plugin_count=$(ls -1 /opt/cni/bin | wc -l)
+    if [[ $plugin_count -lt 5 ]]; then
+        log_error "CNI installation verification failed: only $plugin_count plugins found"
+        return 1
+    fi
+    
+    # Test a core plugin
+    if [[ -x "/opt/cni/bin/bridge" ]]; then
+        local installed_version=$(/opt/cni/bin/bridge 2>&1 | grep -o 'v[0-9]\+\.[0-9]\+\.[0-9]\+' | head -1 || echo "unknown")
+        log_info "Installed CNI version: ${installed_version:-unknown}"
+    fi
+    
+    log_success "CNI plugins installed successfully ($plugin_count plugins)"
+    log_info "CNI plugins location: /opt/cni/bin"
+    log_info "Available plugins: $(ls /opt/cni/bin | tr '\n' ' ')"
+}
+
 # =============================================================================
 # SERVICE MANAGEMENT
 # =============================================================================

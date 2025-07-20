@@ -371,7 +371,7 @@ execute_step() {
         # Check if we need root privileges for this step
         local needs_root=false
         case "$step_function" in
-            prepare_system|setup_netmaker|install_docker|disable_systemd_resolved|configure_dnsmasq|reload_dns_services|configure_firewall|install_hashicorp_tools|setup_service_mesh|start_services)
+            prepare_system|setup_netmaker|install_docker|disable_systemd_resolved|configure_dnsmasq|reload_dns_services|configure_firewall|install_hashicorp_tools|install_cni|setup_service_mesh|start_services)
                 needs_root=true
                 ;;
         esac
@@ -444,7 +444,10 @@ guided_installation() {
     
     execute_step "Install HashiCorp Tools" "install_hashicorp_tools" \
         "Install Nomad, Consul, and Vault binaries"
-    
+
+    execute_step "Install CNI for networking" "install_cni" \
+        "Install CNI plugins for container networking"
+
     execute_step "Setup Service Mesh" "setup_service_mesh" \
         "Configure service mesh components and policies"
     
@@ -533,6 +536,7 @@ main() {
         reload_dns_services
         configure_firewall
         install_hashicorp_tools
+        install_cni
         
         # Service mesh setup (from setup_service_mesh.sh)
         setup_service_mesh

@@ -582,9 +582,22 @@ server {
 client {
   enabled = true
   servers = ["$NOMAD_SERVER_IP:4647"]
+  network_interface = "netmaker"
+  cni_config_dir = "/etc/cni/net.d"
   host_volume "docker-sock" {
     path = "/var/run/docker.sock"
     read_only = false
+  }
+
+  reserved {
+    cpu = 250      # Reserve 250MHz for system
+    memory = 512   # Reserve 512MB for system
+  }
+
+  max_kill_timeout = "60s"       # Default: 30s
+
+  host_network "lo" {
+    interface = "lo"
   }
 }
 
