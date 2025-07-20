@@ -38,17 +38,11 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        os: [ubuntu-20.04, ubuntu-22.04, debian-11, debian-12]
+        os: [ubuntu-22.04, debian-12]
         include:
-          - os: ubuntu-20.04
-            distro: ubuntu
-            version: focal
           - os: ubuntu-22.04
             distro: ubuntu
             version: jammy
-          - os: debian-11
-            distro: debian
-            version: bullseye
           - os: debian-12
             distro: debian
             version: bookworm
