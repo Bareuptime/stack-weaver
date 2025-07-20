@@ -128,7 +128,7 @@ jobs:
           VERSION="${{ steps.version.outputs.version }}"
           
           cat > release_notes.md << 'EOF_NOTES'
-          # Cluster Forge ${VERSION}
+          # Cluster Forge ${{ github.event.inputs.release_tag }}
           
           ## 🚀 What's New
           
