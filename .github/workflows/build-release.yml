@@ -182,6 +182,7 @@ jobs:
           path: |
             ${{ steps.bundle.outputs.bundle_path }}
             ${{ steps.bundle.outputs.checksum_path }}
+            release_notes.md
           retention-days: 30
 
   create-release:
@@ -203,6 +204,18 @@ jobs:
         run: |
           mkdir -p release-assets
           find artifacts -name "cluster-forge-*" -type f -exec cp {} release-assets/ \;
+          
+          # Find and copy release notes from any artifact
+          RELEASE_NOTES=$(find artifacts -name "release_notes.md" -type f | head -1)
+          if [[ -n "$RELEASE_NOTES" ]]; then
+            cp "$RELEASE_NOTES" release_notes.md
+            echo "Found release notes at: $RELEASE_NOTES"
+          else
+            echo "Warning: No release notes found, creating default"
+            echo "# Cluster Forge Release" > release_notes.md
+            echo "Binary release for Cluster Forge" >> release_notes.md
+          fi
+          
           ls -la release-assets/
 
       - name: Get version
@@ -220,7 +233,7 @@ jobs:
         with:
           tag_name: ${{ steps.version.outputs.version }}
           name: "Cluster Forge ${{ steps.version.outputs.version }}"
-          body_path: artifacts/cluster-forge-ubuntu-22.04-${{ steps.version.outputs.version }}/release_notes.md
+          body_path: release_notes.md
           files: release-assets/*
           draft: false
           prerelease: ${{ github.event.inputs.prerelease || false }}
