@@ -159,9 +159,9 @@ join_netmaker_network() {
     local netmaker_interface=""
     
     set +e
-    while [[ $attempts -lt 30 ]]; do
-        log_info "Waiting for Netmaker interface... attempt $((attempts + 1))/30"
-        
+    while [[ $attempts -lt 90 ]]; do
+        log_info "Waiting for Netmaker interface... attempt $((attempts + 1))/90"
+
         # First, find the netmaker interface (usually starts with nm-)
         ip link show
         netmaker_interface=$(ip link show 2>/dev/null | grep -oE "(nm-[^:]*|netmaker[^:]*)" 2>/dev/null | head -1 || true)
@@ -184,7 +184,7 @@ join_netmaker_network() {
             log_info "No Netmaker interface found yet (looking for nm-* or netmaker*)"
         fi
         
-        sleep 2
+        sleep 3
         ((attempts++))
     done
     
@@ -197,7 +197,7 @@ join_netmaker_network() {
         ip addr show
         log_info "Checking for any WireGuard interfaces:"
         ip link show type wireguard 2>/dev/null || log_info "  No WireGuard interfaces found"
-        return 1
+        exit 1
     fi
     
     # Export for use in other functions
