@@ -18,7 +18,7 @@ prepare_system() {
     # Install required packages
     apt-get install -y \
         curl wget unzip jq apt-transport-https ca-certificates \
-        gnupg lsb-release software-properties-common ufw dnsmasq
+        gnupg lsb-release software-properties-common ufw dnsmasq dnsutils
     
     # Create directories
     mkdir -p /opt/{nomad,consul}
