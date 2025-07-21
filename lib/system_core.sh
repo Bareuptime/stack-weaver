@@ -305,6 +305,14 @@ EOF
     log_info "  • Consul DNS: ${CONSUL_SERVER_IP}:8600"
     log_info "  • Listen addresses: 127.0.0.1, ${docker_ip}, ${netmaker_ip}"
 
+    # configure /etc/resolv.conf
+    log_info "Configuring /etc/resolv.conf..."
+    mkdir -p ~/bkp
+    cp /etc/resolv.conf ~/bkp/resolv.conf.bak
+    cat > /etc/resolv.conf << EOF
+nameserver 127.0.0.1
+EOF
+
     log_info "Disabling systemd-resolved to avoid conflicts..."
     disable_systemd_resolved
     log_success "systemd-resolved disabled"
