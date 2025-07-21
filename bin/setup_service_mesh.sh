@@ -893,6 +893,7 @@ setup_service_mesh() {
     create_host_volumes
     create_service_directories
     create_vault_agent_config
+    create_vault_agent_service
     create_certificate_templates
     create_ownership_scripts
     create_vault_token_file
