@@ -191,7 +191,10 @@ join_netmaker_network() {
     if [[ -z "$netmaker_ip" ]]; then
         log_error "Failed to detect Netmaker interface IP after 60 seconds"
         log_info "Available network interfaces:"
+        ip link show
         ip link show | grep -E "^[0-9]+:" | awk '{print "  " $2}' | sed 's/:$//'
+        log_info "Checking for ip addr:"
+        ip addr show
         log_info "Checking for any WireGuard interfaces:"
         ip link show type wireguard 2>/dev/null || log_info "  No WireGuard interfaces found"
         return 1
