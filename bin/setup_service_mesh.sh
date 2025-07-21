@@ -591,6 +591,12 @@ client {
     read_only = false
   }
 
+  meta {
+    "client_type" = "{$CLIENT_TYPE:-backend}"
+    "environment" = "production"
+    "tier" = "backend"
+  }
+
   reserved {
     cpu = 250      # Reserve 250MHz for system
     memory = 512   # Reserve 512MB for system
