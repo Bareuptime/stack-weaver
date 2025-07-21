@@ -531,8 +531,8 @@ main() {
         install_cni
         
         # Service mesh setup (from setup_service_mesh.sh)
-        configure_firewall
         setup_netmaker
+        configure_firewall
         configure_dnsmasq
         reload_dns_services
         setup_service_mesh
