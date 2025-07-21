@@ -51,7 +51,7 @@ detect_binary_paths() {
     fi
     
     if [ -z "$VAULT_BIN" ]; then
-        error "Vault binary not found. Please install Vault first."
+        log_error "Vault binary not found. Please install Vault first."
     fi
     
     # Detect Consul binary
@@ -68,7 +68,7 @@ detect_binary_paths() {
     fi
     
     if [ -z "$CONSUL_BIN" ]; then
-        error "Consul binary not found. Please install Consul first."
+        log_error "Consul binary not found. Please install Consul first."
     fi
     
     # Detect Nomad binary
@@ -85,7 +85,7 @@ detect_binary_paths() {
     fi
     
     if [ -z "$NOMAD_BIN" ]; then
-        error "Nomad binary not found. Please install Nomad first."
+        log_error "Nomad binary not found. Please install Nomad first."
     fi
     
     log_info "✅ Binary paths detected:"
@@ -99,19 +99,21 @@ verify_binary_versions() {
     
     # Check Vault version
     if ! VAULT_VERSION=$("$VAULT_BIN" version 2>/dev/null | head -n1); then
-        error "Failed to get Vault version from $VAULT_BIN"
+        log_error "Failed to get Vault version from $VAULT_BIN"
     fi
     log_info "  Vault: $VAULT_VERSION"
     
     # Check Consul version
     if ! CONSUL_VERSION=$("$CONSUL_BIN" version 2>/dev/null | head -n1); then
-        error "Failed to get Consul version from $CONSUL_BIN"
+        log_error "Failed to get Consul version from $CONSUL_BIN"
     fi
     log_info "  Consul: $CONSUL_VERSION"
     
     # Check Nomad version
     if ! NOMAD_VERSION=$("$NOMAD_BIN" version 2>/dev/null | head -n1); then
-        error "Failed to get Nomad version from $NOMAD_BIN"
+        "$NOMAD_BIN" version
+        "$NOMAD_BIN" version 2>/dev/null | head -n1
+        log_error "Failed to get Nomad version from $NOMAD_BIN"
     fi
     log_info "  Nomad: $NOMAD_VERSION"
     
@@ -154,38 +156,38 @@ create_service_users() {
 
 validate_input() {
     if [[ $EUID -ne 0 ]]; then
-        error "This script must be run as root"
+        log_error "This script must be run as root"
     fi
     
     if [[ "$ROLE" != "server" && "$ROLE" != "client" ]]; then
-        error "ROLE must be 'server' or 'client'"
+        log_error "ROLE must be 'server' or 'client'"
     fi
     
     if [[ -z "$NOMAD_SERVER_IP" ]]; then
-        error "NOMAD_SERVER_IP must be provided (use the server node's IP address)"
+        log_error "NOMAD_SERVER_IP must be provided (use the server node's IP address)"
     fi
     
     if ! [[ "$NOMAD_SERVER_IP" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-        error "NOMAD_SERVER_IP must be a valid IP address"
+        log_error "NOMAD_SERVER_IP must be a valid IP address"
     fi
 
     if [[ -z "$CONSUL_SERVER_IP" ]]; then
-        error "CONSUL_SERVER_IP must be provided (use the server node's IP address)"
+        log_error "CONSUL_SERVER_IP must be provided (use the server node's IP address)"
     fi
 
     if ! [[ "$CONSUL_SERVER_IP" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-        error "CONSUL_SERVER_IP must be a valid IP address"
+        log_error "CONSUL_SERVER_IP must be a valid IP address"
     fi
 
     if [[ -z "$NETMAKER_TOKEN" ]]; then
-        error "NETMAKER_TOKEN is mandatory. Please provide the Netmaker enrollment token."
+        log_error "NETMAKER_TOKEN is mandatory. Please provide the Netmaker enrollment token."
     fi
 
     if [[ -z "$VAULT_ADDR" ]]; then
-        error "VAULT_ADDR must be set to the Vault server address"
+        log_error "VAULT_ADDR must be set to the Vault server address"
     fi
     if [[ -z "$VAULT_TOKEN" ]]; then
-        error "VAULT_TOKEN must be set to the Vault authentication token"
+        log_error "VAULT_TOKEN must be set to the Vault authentication token"
     fi
 }
 
