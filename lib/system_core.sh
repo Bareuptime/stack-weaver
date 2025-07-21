@@ -163,7 +163,10 @@ join_netmaker_network() {
         log_info "Waiting for Netmaker interface... attempt $((attempts + 1))/30"
         
         # First, find the netmaker interface (usually starts with nm-)
+        ip link show
         netmaker_interface=$(ip link show 2>/dev/null | grep -oE "(nm-[^:]*|netmaker[^:]*)" 2>/dev/null | head -1 || true)
+        log_info "Checking for Netmaker interface: $netmaker_interface"
+
         
         if [[ -n "$netmaker_interface" ]]; then
             log_info "Found Netmaker interface: $netmaker_interface"
