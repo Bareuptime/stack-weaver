@@ -526,15 +526,15 @@ main() {
         # Run automated installation
         # Core system setup (from main.sh functionality)
         prepare_system
-        setup_netmaker
         install_docker
-        configure_dnsmasq
-        reload_dns_services
-        configure_firewall
         install_hashicorp_tools
         install_cni
         
         # Service mesh setup (from setup_service_mesh.sh)
+        configure_firewall
+        setup_netmaker
+        configure_dnsmasq
+        reload_dns_services
         setup_service_mesh
         
         # Start services and validate
