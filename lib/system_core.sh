@@ -911,7 +911,7 @@ validate_installation() {
     fi
     
     # Check Nomad API (HTTPS only)
-    if curl -sk "https://127.0.0.1:4646/v1/status/leader" >/dev/null 2>&1; then
+    if curl -sk "https://${NETMAKER_IP}:4646/v1/status/leader" >/dev/null 2>&1; then
         log_info "✓ Nomad API is responding (HTTPS)"
     else
         log_error "✗ Nomad API is not responding (HTTPS)"
