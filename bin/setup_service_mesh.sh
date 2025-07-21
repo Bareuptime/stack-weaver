@@ -604,7 +604,7 @@ client {
 }
 
 consul {
-  address = "https://127.0.0.1:8501"
+  address = "127.0.0.1:8501"
   ssl = true
   verify_ssl = false
   ca_file = "/etc/consul.d/tls/ca.pem"
