@@ -620,8 +620,6 @@ tls {
   key_file = "/etc/nomad.d/tls/nomad-key.pem"
   verify_server_hostname = false
   verify_https_client = false
-  rpc_upgrade_mode = false           # ADDED: Prevents RPC upgrade issues
-  verify_incoming = false            # ADDED: Relaxed for client connections
 }
 
 acl {
