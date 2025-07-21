@@ -158,11 +158,12 @@ join_netmaker_network() {
     local netmaker_ip=""
     local netmaker_interface=""
     
+    set +e
     while [[ $attempts -lt 30 ]]; do
         log_info "Waiting for Netmaker interface... attempt $((attempts + 1))/30"
         
         # First, find the netmaker interface (usually starts with nm-)
-        netmaker_interface=$(ip link show 2>/dev/null | grep -oE "(nm-[^:]*|netmaker[^:]*)" | head -1 || echo "")
+        netmaker_interface=$(ip link show 2>/dev/null | grep -oE "(nm-[^:]*|netmaker[^:]*)" 2>/dev/null | head -1 || true)
         
         if [[ -n "$netmaker_interface" ]]; then
             log_info "Found Netmaker interface: $netmaker_interface"
@@ -171,6 +172,7 @@ join_netmaker_network() {
             
             if [[ -n "$netmaker_ip" ]]; then
                 log_info "Netmaker interface ready with IP: $netmaker_ip"
+                set -e
                 break
             else
                 log_info "Interface $netmaker_interface found but no IP assigned yet"
