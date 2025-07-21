@@ -635,11 +635,26 @@ acl {
 vault {
   enabled = true
   address = "$VAULT_ADDR"
-  create_from_role = "nomad-cluster"
+  ca_file = "/etc/nomad.d/tls/ca.pem"    # Use ca_file instead of ca_path
+  tls_skip_verify = true 
+
+  create_from_role = "nomad-cluster"  
+  jwt_auth_backend_path = "jwt"  # Add JWT auth path
+  
+  # Enable workload identity (same as server)
+  disable_workload_identity = false
+  
+  # Default identity for Vault (same as server)
+  default_identity {
+    aud = ["vault.io"]
+    env = true
+    file = true
+    ttl = "1h"
+  }
+  
+  # Token renewal settings
   task_token_ttl = "1h"
-  ca_path = "/etc/nomad.d/tls/ca.pem"
-  cert_path = "/etc/nomad.d/tls/nomad.pem"
-  key_path = "/etc/nomad.d/tls/nomad-key.pem"
+  task_token_ttl_max = "24h"
 }
 EOF
     
