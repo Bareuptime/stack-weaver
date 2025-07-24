@@ -567,6 +567,15 @@ create_nomad_config() {
         cp "/etc/nomad.d/nomad.hcl" "$backup_file"
         log_info "✅ Backup created: $backup_file"
     fi
+
+    if [[ -z "$NOMAD_MOUNT" ]]; then
+        NOMAD_MOUNT="/opt/nomad/data"
+        mkdir -p "$NOMAD_MOUNT"
+    fi
+
+    if [[ -z "$CLIENT_TYPE" ]]; then
+        CLIENT_TYPE="backend"
+    fi
     
     cat > /etc/nomad.d/nomad.hcl << EOF
 datacenter = "dc1"
@@ -591,8 +600,13 @@ client {
     read_only = false
   }
 
+  host_volume "host_data" {
+    path = "$NOMAD_MOUNT"
+    read_only = false
+  }
+
   meta {
-    "client_type" = "{$CLIENT_TYPE:-backend}"
+    "client_type" = "$CLIENT_TYPE"
     "environment" = "production"
     "tier" = "backend"
   }
